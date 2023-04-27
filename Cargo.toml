@@ -1,0 +1,18 @@
+[package]
+name = "dsar"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+anyhow = "1.0.70"
+chrono = "0.4.24"
+clap = { version = "4.2.4", features = ["derive"] }
+env_logger = "0.10.0"
+itertools = "0.10.5"
+log = "0.4.17"
+prometheus-parse = "0.2.4"
+rayon = "1.7.0"
+reqwest = { version = "0.11.16", features = ["blocking"] }
+tokio = { version = "1.27.0", features = ["full"] }
