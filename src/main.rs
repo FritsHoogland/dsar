@@ -5,25 +5,36 @@ use anyhow::Result;
 //use log::*;
 use std::collections::BTreeMap;
 
-use dsar::{read_node_exporter_into_map, process_cpu_statistics, Statistic, print_sar_u, print_sar_u_header, print_sar_d, print_sar_d_header, print_sar_n_dev, print_sar_n_dev_header, print_sar_n_edev, print_sar_n_edev_header, print_sar_r, print_sar_r_header, print_iostat, print_iostat_header, print_iostat_x, print_iostat_x_header, print_sar_s, print_sar_s_header, print_sar_w, print_sar_w_header, print_sar_b, print_sar_b_header, print_yb_cpu, print_yb_cpu_header, print_yb_network, print_yb_network_header};
+use dsar::{read_node_exporter_into_map, process_cpu_statistics, Statistic, print_sar_u, print_sar_u_header, print_sar_d, print_sar_d_header, print_sar_n_dev, print_sar_n_dev_header, print_sar_n_edev, print_sar_n_edev_header, print_sar_r, print_sar_r_header, print_iostat, print_iostat_header, print_iostat_x, print_iostat_x_header, print_sar_s, print_sar_s_header, print_sar_w, print_sar_w_header, print_sar_b, print_sar_b_header, print_yb_cpu, print_yb_cpu_header, print_yb_network, print_yb_network_header, print_yb_memory, print_yb_memory_header, print_sar_q, print_sar_q_header, print_sar_n_sock, print_sar_n_sock_header};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 enum OutputOptions
 {
     SarU,
+    #[clap(name = "sar-u-ALL")]
     SarUAll,
     SarD,
+    #[clap(name = "sar-S")]
     SarS,
+    #[clap(name = "sar-W")]
     SarW,
+    SarQ,
+    #[clap(name = "sar-B")]
     SarB,
+    #[clap(name = "sar-n-DEV")]
     SarNDev,
+    #[clap(name = "sar-n-EDEV")]
     SarNEdev,
+    #[clap(name = "sar-n-SOCK")]
+    SarNSock,
     SarR,
+    #[clap(name = "sar-r-ALL")]
     SarRAll,
     Iostat,
     IostatX,
     YbCpu,
     YbNetwork,
+    YbMemory,
 }
 
 #[derive(Debug, Parser)]
@@ -75,14 +86,17 @@ async fn main() -> Result<()>
                 OutputOptions::SarS => print_sar_s_header(),
                 OutputOptions::SarW => print_sar_w_header(),
                 OutputOptions::SarB => print_sar_b_header(),
+                OutputOptions::SarQ => print_sar_q_header(),
                 OutputOptions::SarNDev => print_sar_n_dev_header(),
                 OutputOptions::SarNEdev => print_sar_n_edev_header(),
+                OutputOptions::SarNSock => print_sar_n_sock_header(),
                 OutputOptions::SarR => print_sar_r_header("normal"),
                 OutputOptions::SarRAll => print_sar_r_header("all"),
                 OutputOptions::Iostat => print_iostat_header(),
                 OutputOptions::IostatX => print_iostat_x_header(),
                 OutputOptions::YbCpu => print_yb_cpu_header(),
                 OutputOptions::YbNetwork => print_yb_network_header(),
+                OutputOptions::YbMemory => print_yb_memory_header(),
             }
         };
         match args.output {
@@ -92,14 +106,17 @@ async fn main() -> Result<()>
             OutputOptions::SarS => print_sar_s(&statistics),
             OutputOptions::SarW => print_sar_w(&statistics),
             OutputOptions::SarB => print_sar_b(&statistics),
+            OutputOptions::SarQ => print_sar_q(&statistics),
             OutputOptions::SarNDev => print_sar_n_dev(&statistics),
             OutputOptions::SarNEdev => print_sar_n_edev(&statistics),
+            OutputOptions::SarNSock => print_sar_n_sock(&statistics),
             OutputOptions::SarR => print_sar_r("normal", &statistics),
             OutputOptions::SarRAll => print_sar_r("all", &statistics),
             OutputOptions::Iostat => print_iostat(&statistics),
             OutputOptions::IostatX => print_iostat_x(&statistics),
             OutputOptions::YbCpu => print_yb_cpu(&statistics),
             OutputOptions::YbNetwork => print_yb_network(&statistics),
+            OutputOptions::YbMemory => print_yb_memory(&statistics),
         }
         print_counter += 1;
     }
