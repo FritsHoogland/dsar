@@ -17,6 +17,25 @@ pub struct Statistic {
     pub last_timestamp: DateTime<Utc>,
 }
 
+/*
+#[derive(Debug)]
+pub struct CpuDetails {
+    hostname: String,
+    timestamp: DateTime<Utc>,
+    user: f64,
+    system: f64,
+    iowait: f64,
+    nice: f64,
+    irq: f64,
+    softirq: f64,
+    steal: f64,
+    idle: f64,
+    scheduler_runtime: f64,
+    scheduler_wait: f64,
+}
+
+ */
+
 pub async fn read_node_exporter_into_map(
     hosts: &Vec<&str>,
     ports: &Vec<&str>,
@@ -86,7 +105,7 @@ fn parse_node_exporter(
     Scrape::parse(lines.into_iter()).unwrap()
 }
 
-pub async fn process_cpu_statistics(
+pub async fn process_statistics(
     node_exporter_values: &HashMap<String, Scrape>,
     statistics: &mut BTreeMap<(String, String, String, String), Statistic>,
 )
@@ -99,11 +118,56 @@ pub async fn process_cpu_statistics(
             {
                 // simple gauge values
                 "node_procs_running" | "node_procs_blocked" | "node_load1" | "node_load5" | "node_load15" |
-                "node_memory_MemFree_bytes" | "node_memory_MemAvailable_bytes" | "node_memory_MemTotal_bytes" |
-                "node_memory_Buffers_bytes" | "node_memory_Cached_bytes" | "node_memory_Committed_AS_bytes" | "node_memory_SwapTotal_bytes" |
-                "node_memory_SwapCached_bytes" | "node_memory_SwapFree_bytes" |
-                "node_memory_Active_bytes" | "node_memory_Inactive_bytes" | "node_memory_Dirty_bytes" | "node_memory_AnonPages_bytes" |
-                "node_memory_Slab_bytes" | "node_memory_KernelStack_bytes" | "node_memory_PageTables_bytes" | "node_memory_VmallocTotal_bytes" => {
+                "node_memory_Active_anon_bytes" |
+                "node_memory_Active_bytes" |
+                "node_memory_Active_file_bytes" |
+                "node_memory_AnonHugePages_bytes" |
+                "node_memory_AnonPages_bytes" |
+                "node_memory_Bounce_bytes" |
+                "node_memory_Buffers_bytes" |
+                "node_memory_Cached_bytes" |
+                "node_memory_CommitLimit_bytes" |
+                "node_memory_Committed_AS_bytes" |
+                "node_memory_DirectMap2M_bytes" |
+                "node_memory_DirectMap4k_bytes" |
+                "node_memory_Dirty_bytes" |
+                "node_memory_FileHugePages_bytes" |
+                "node_memory_FilePmdMapped_bytes" |
+                "node_memory_HardwareCorrupted_bytes" |
+                "node_memory_HugePages_Free" |
+                "node_memory_HugePages_Rsvd" |
+                "node_memory_HugePages_Surp" |
+                "node_memory_HugePages_Total" |
+                "node_memory_Hugepagesize_bytes" |
+                "node_memory_Hugetlb_bytes" |
+                "node_memory_Inactive_anon_bytes" |
+                "node_memory_Inactive_bytes" |
+                "node_memory_Inactive_file_bytes" |
+                "node_memory_KReclaimable_bytes" |
+                "node_memory_KernelStack_bytes" |
+                "node_memory_Mapped_bytes" |
+                "node_memory_MemAvailable_bytes" |
+                "node_memory_MemFree_bytes" |
+                "node_memory_MemTotal_bytes" |
+                "node_memory_Mlocked_bytes" |
+                "node_memory_NFS_Unstable_bytes" |
+                "node_memory_PageTables_bytes" |
+                "node_memory_Percpu_bytes" |
+                "node_memory_SReclaimable_bytes" |
+                "node_memory_SUnreclaim_bytes" |
+                "node_memory_ShmemHugePages_bytes" |
+                "node_memory_ShmemPmdMapped_bytes" |
+                "node_memory_Shmem_bytes" |
+                "node_memory_Slab_bytes" |
+                "node_memory_SwapCached_bytes" |
+                "node_memory_SwapFree_bytes" |
+                "node_memory_SwapTotal_bytes" |
+                "node_memory_Unevictable_bytes" |
+                "node_memory_VmallocChunk_bytes" |
+                "node_memory_VmallocTotal_bytes" |
+                "node_memory_VmallocUsed_bytes" |
+                "node_memory_WritebackTmp_bytes" |
+                "node_memory_Writeback_bytes" => {
                     let Value::Gauge(value) = sample.value else { panic!("{} value enum type should be Gauge!", sample.metric)};
                     statistics
                     .entry((
@@ -126,7 +190,8 @@ pub async fn process_cpu_statistics(
                     );
                 },
                 // simple counter values
-                "node_intr_total" | "node_context_switches_total" => {
+                "node_intr_total" | "node_context_switches_total" |
+                "node_softnet_dropped_total" | "node_softnet_processed_total" | "node_softnet_times_squeezed_total" => {
                     let Value::Counter(value) = sample.value else { panic!("{} value enum type should be Counter!", sample.metric)};
                     statistics
                         .entry((
@@ -137,7 +202,7 @@ pub async fn process_cpu_statistics(
                         ))
                         .and_modify( |row| {
                             row.delta_value = value - row.last_value;
-                            row.per_second_value = row.delta_value / sample.timestamp.signed_duration_since(row.last_timestamp).num_milliseconds() as f64 / 1000.;
+                            row.per_second_value = row.delta_value / (sample.timestamp.signed_duration_since(row.last_timestamp).num_milliseconds() as f64 / 1000.);
                             row.last_value = value;
                             row.last_timestamp = sample.timestamp;
                         } )
@@ -151,7 +216,13 @@ pub async fn process_cpu_statistics(
                         );
                 },
                 // counter values that are untyped
-                "node_vmstat_pgfault" | "node_vmstat_pgmajfault" | "node_vmstat_pgpgin" | "node_vmstat_pgpgout" | "node_vmstat_pswpin" | "node_vmstat_pswpout" => {
+                "node_vmstat_oom_kill" |
+                "node_vmstat_pgfault" |
+                "node_vmstat_pgmajfault" |
+                "node_vmstat_pgpgin" |
+                "node_vmstat_pgpgout" |
+                "node_vmstat_pswpin" |
+                "node_vmstat_pswpout" => {
                     let Value::Untyped(value) = sample.value else { panic!("{} value enum type should be Untyped!", sample.metric)};
                     statistics
                         .entry((
@@ -269,7 +340,8 @@ pub async fn process_cpu_statistics(
                             }
                         );
                 }
-                "node_sockstat_sockets_used" | "node_sockstat_TCP_inuse" | "node_sockstat_UDP_inuse" | "node_sockstat_RAW_inuse" | "node_sockstat_FRAG_inuse" | "node_sockstat_TCP_tw" => {
+                "node_sockstat_sockets_used" | "node_sockstat_TCP_inuse" | "node_sockstat_UDP_inuse" | "node_sockstat_RAW_inuse" | "node_sockstat_FRAG_inuse" | "node_sockstat_TCP_tw" |
+                "node_sockstat_TCP6_inuse" | "node_sockstat_UDP6_inuse" | "node_sockstat_RAW6_inuse" | "node_sockstat_FRAG6_inuse" => {
                     let Value::Gauge(value) = sample.value else { panic!("{} value enum type should be Gauge!", sample.metric)};
                     statistics
                         .entry((
@@ -312,11 +384,9 @@ pub async fn process_cpu_statistics(
                                 ..Default::default()
                             }
                         );
-
-
                 }
                 // YB statistics. These are untyped, but are gauge values.
-                "generic_heap_size" |
+                "generic_heap_size" | "generic_current_allocated_bytes" |
                 "tcmalloc_pageheap_free_bytes" | "tcmalloc_max_total_thread_cache_bytes" | "tcmalloc_current_total_thread_cache_bytes" | "tcmalloc_pageheap_unmapped_bytes" |
                 "mem_tracker" |
                 "mem_tracker_Call" | "mem_tracker_Call_Outbound_RPC" | "mem_tracker_Call_Inbound_RPC" | "mem_tracker_Call_Redis" | "mem_tracker_Call_CQL" |
@@ -352,6 +422,70 @@ pub async fn process_cpu_statistics(
                             }
                         );
                 },
+                // YB IO related statistics. These are untyped, but are counters.
+                // these are server level statistics
+                "glog_info_messages" |
+                "glog_warning_message" |
+                "glog_error_messages" =>
+                {
+                    let Value::Untyped(value) = sample.value else { panic!("{} value enum type should be Untyped!", sample.metric)};
+                    let metric_type = sample.labels.iter().find(|(label, _)| *label == "metric_type").map(|(_, value)| value).unwrap();
+                    statistics
+                        .entry(( hostname.clone(), sample.metric.clone(), metric_type.to_string(), "".to_string() ))
+                        .and_modify( |row| {
+                            row.delta_value = value - row.last_value;
+                            row.per_second_value = row.delta_value / (sample.timestamp.signed_duration_since(row.last_timestamp).num_milliseconds() as f64 / 1000.0);
+                            row.last_value = value;
+                            row.last_timestamp = sample.timestamp;
+                            debug!("{} last_value: {}, last_timestamp: {}, delta_value: {}, per_second_value: {}", sample.metric, row.last_value, row.last_timestamp, row.delta_value, row.per_second_value);
+                        } )
+                        .or_insert(
+                            Statistic
+                            {
+                                last_value: value,
+                                last_timestamp: sample.timestamp,
+                                ..Default::default()
+                            }
+                        );
+                }
+                // YB IO related statistics. These are untyped, but are counters.
+                // these are tablet level statistics
+                "log_bytes_logged" |
+                "log_reader_bytes_read" |
+                "log_sync_latency_count" |
+                "log_sync_latency_sum" |
+                "log_append_latency_count" |
+                "log_append_latency_sum" |
+                "log_cache_disk_reads" |
+                "rocksdb_flush_write_bytes" |
+                "rocksdb_compact_read_bytes" |
+                "rocksdb_compact_write_bytes" |
+                "rocksdb_write_raw_block_micros_count" |
+                "rocksdb_write_raw_block_micros_sum" |
+                "rocksdb_sst_read_micros_count" |
+                "rocksdb_sst_read_micros_sum" =>
+                    {
+                        let Value::Untyped(value) = sample.value else { panic!("{} value enum type should be Untyped!", sample.metric)};
+                        let metric_type = sample.labels.iter().find(|(label, _)| *label == "metric_type").map(|(_, value)| value).unwrap();
+                        let table_id = sample.labels.iter().find(|(label, _)| *label == "table_id").map(|(_, value)| value).unwrap();
+                        statistics
+                            .entry(( hostname.clone(), sample.metric.clone(), metric_type.to_string(), table_id.to_string() ))
+                            .and_modify( |row| {
+                                row.delta_value = value - row.last_value;
+                                row.per_second_value = row.delta_value / (sample.timestamp.signed_duration_since(row.last_timestamp).num_milliseconds() as f64 / 1000.0);
+                                row.last_value = value;
+                                row.last_timestamp = sample.timestamp;
+                                warn!("{} last_value: {}, last_timestamp: {}, delta_value: {}, per_second_value: {}", sample.metric, row.last_value, row.last_timestamp, row.delta_value, row.per_second_value);
+                            } )
+                            .or_insert(
+                                Statistic
+                                {
+                                    last_value: value,
+                                    last_timestamp: sample.timestamp,
+                                    ..Default::default()
+                                }
+                            );
+                    }
                 &_ => {},
             }
         }
@@ -437,13 +571,15 @@ pub fn print_sar_s(
             let swap_used_percent = swap_used / swap_total * 100.;
             let swap_cached = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapCached_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
             let swap_cached_percent = swap_cached / swap_used * 100.;
-            println!("{:30} {:10.0} {:10.0} {:10.2} {:10.0} {:10.2}",
+            let time = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapFree_bytes").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+            println!("{:30} {:8} {:10.0} {:10.0} {:10.2} {:10.0} {:10.2}",
                      hostname,
+                     time.format("%H:%M:%S"),
                      swap_free / (1024. * 1024.),
                      swap_used / (1024. * 1024.),
                      swap_used_percent,
                      swap_cached / (1024. * 1024.),
-                     swap_cached_percent,
+                     if swap_cached_percent.is_nan() { 0. } else { swap_cached_percent },
             );
         }
     }
@@ -451,8 +587,9 @@ pub fn print_sar_s(
 
 pub fn print_sar_s_header()
 {
-    println!("{:30} {:>10} {:>10} {:>10} {:>10} {:>10}",
+    println!("{:30} {:8} {:>10} {:>10} {:>10} {:>10} {:>10}",
              "hostname",
+             "time",
              "mbspwfree",
              "mbswpused",
              "%swpused",
@@ -471,8 +608,10 @@ pub fn print_sar_w(
         {
             let pages_swap_in = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_vmstat_pswpin").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
             let pages_swap_out = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_vmstat_pswpout").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-            println!("{:30} {:10.0} {:10.0}",
+            let time = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_vmstat_pswpin").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+            println!("{:30} {:8} {:10.0} {:10.0}",
                      hostname,
+                     time.format("%H:%M:%S"),
                      pages_swap_in,
                      pages_swap_out,
             );
@@ -482,8 +621,9 @@ pub fn print_sar_w(
 
 pub fn print_sar_w_header()
 {
-    println!("{:30} {:>10} {:>10}",
+    println!("{:30} {:8} {:>10} {:>10}",
              "hostname",
+             "time",
              "pswpin/s",
              "pswpout/s",
     );
@@ -503,8 +643,10 @@ pub fn print_sar_q(
             let node_load_5 = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_load5").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
             let node_load_15 = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_load15").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
             let node_procs_blocked = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_procs_blocked").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            println!("{:30} {:10.0} {:10.0} {:10.2} {:10.2} {:10.2} {:10.0}",
+            let time = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_load1").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+            println!("{:30} {:8} {:10.0} {:10.0} {:10.2} {:10.2} {:10.2} {:10.0}",
                      hostname,
+                     time.format("%H:%M:%S"),
                      runqueue_size,
                      tasklist_size,
                      node_load_1,
@@ -518,8 +660,9 @@ pub fn print_sar_q(
 
 pub fn print_sar_q_header()
 {
-    println!("{:30} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10}",
+    println!("{:30} {:8} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10}",
              "hostname",
+             "time",
              "runq-sz",
              "plist-sz",
              "ldavg-1",
@@ -540,8 +683,10 @@ pub fn print_yb_cpu(
             let cpu_user = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "cpu_utime" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
             let cpu_system = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "cpu_stime" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
             let cpu_total = cpu_user + cpu_system;
-            println!("{:50} {:10.3} {:10.3} {:10.3}",
+            let time = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "cpu_utime" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+            println!("{:50} {:8} {:10.3} {:10.3} {:10.3}",
                      hostname,
+                     time.format("%H:%M:%S"),
                      cpu_user / 1000.,
                      cpu_system / 1000.,
                      cpu_total / 1000.,
@@ -552,8 +697,9 @@ pub fn print_yb_cpu(
 
 pub fn print_yb_cpu_header()
 {
-    println!("{:50} {:>10} {:>10} {:>10}",
+    println!("{:50} {:8} {:>10} {:>10} {:>10}",
              "hostname",
+             "time",
              "user/s",
              "sys/s",
              "tot/s",
@@ -570,8 +716,10 @@ pub fn print_yb_network(
             let network_bytes_received = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "tcp_bytes_received" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
             let network_bytes_sent = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "tcp_bytes_sent" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
             let network_bytes_total = network_bytes_received + network_bytes_sent;
-            println!("{:50} {:10.2} {:10.2} {:10.2}",
+            let time = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "tcp_bytes_received" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+            println!("{:50} {:8} {:10.2} {:10.2} {:10.2}",
                      hostname,
+                     time.format("%H:%M:%S"),
                      network_bytes_received / (1024.*1024.),
                      network_bytes_sent / (1024.*1024.),
                      network_bytes_total / (1024.*1024.),
@@ -582,8 +730,9 @@ pub fn print_yb_network(
 
 pub fn print_yb_network_header()
 {
-    println!("{:50} {:>10} {:>10} {:>10}",
+    println!("{:50} {:8} {:>10} {:>10} {:>10}",
              "hostname",
+             "time",
              "rxMB/s",
              "txMB/s",
              "totMB/s",
@@ -599,6 +748,7 @@ pub fn print_yb_memory(
         if statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "generic_heap_size" && metric_type == "server").count() > 0
         {
             let generic_heap_size = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "generic_heap_size" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
+            let generic_allocated = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "generic_current_allocated_bytes" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
             let tcmalloc_pageheap_free_bytes = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "tcmalloc_pageheap_free_bytes" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
             let tcmalloc_max_total_thread_cache_bytes = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "tcmalloc_max_total_thread_cache_bytes" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
             let tcmalloc_current_total_thread_cache_bytes = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "tcmalloc_current_total_thread_cache_bytes" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
@@ -619,9 +769,12 @@ pub fn print_yb_memory(
             let mem_tracker_read_buffer_outbound_rpc_sending = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Read_Buffer_Outbound_RPC_Sending" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap_or_default(); // master follower does not have this
             let mem_tracker_read_buffer_outbound_rpc_reading = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Read_Buffer_Outbound_RPC_Reading" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap_or_default(); // master follower does not have this
             let mem_tracker_independent_allocations = mem_tracker_compressed_read_buffer_receive + mem_tracker_read_buffer_inbound_rpc_sending + mem_tracker_read_buffer_inbound_rpc_receive + mem_tracker_read_buffer_inbound_rpc_reading + mem_tracker_read_buffer_outbound_rpc_queueing + mem_tracker_read_buffer_outbound_rpc_receive + mem_tracker_read_buffer_outbound_rpc_sending + mem_tracker_read_buffer_outbound_rpc_reading;
-            println!("{:50} {:10.0} {:10.0} {:10.0} {:10.0} {:10.0} {:10.0} {:10.0} {:10.0} {:10.0} {:10.0} {:10.0} {:10.0} {:10.0}",
+            let time = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "generic_heap_size" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+            println!("{:50} {:8} {:10.0} {:10.0}|{:10.0} {:10.0} {:10.0} {:10.0}|{:10.0} {:10.0} {:10.0} {:10.0} {:10.0} {:10.0} {:10.0} {:10.0}",
                      hostname,
+                     time.format("%H:%M:%S"),
                      generic_heap_size / (1024.*1024.),
+                     generic_allocated / (1024.*1024.),
                      tcmalloc_pageheap_free_bytes / (1024.*1024.),
                      tcmalloc_max_total_thread_cache_bytes / (1024.*1024.),
                      tcmalloc_current_total_thread_cache_bytes / (1024.*1024.),
@@ -641,21 +794,151 @@ pub fn print_yb_memory(
 
 pub fn print_yb_memory_header()
 {
-    println!("{:50} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10}",
+    println!("{:50} {:8} {:>10} {:>10}|{:>10} {:>10} {:>10} {:>10}|{:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10}",
+             "",
+             "",
+             "",
+             "generic",
+             "",
+             "",
+             "",
+             "tcmalloc",
+             "memtrackers",
+             "",
+             "",
+             "",
+             "",
+             "",
+             "",
+             "",
+    );
+    println!("{:50} {:8} {:>10} {:>10}|{:>10} {:>10} {:>10} {:>10}|{:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10}",
              "hostname",
-             "tot_heap_M",
-             "tc_phfre_M",
-             "tc_tcmax_M",
-             "tc_tctot_M",
-             "tc_phump_M",
-             "mt",
-             "mt_call",
-             "mt_rd_buf",
-             "mt_crd_buf",
-             "mt_tablets",
-             "mt_log",
-             "mt_bbt",
-             "mt_indep",
+             "time",
+             "total",
+             "allocated",
+             "ph_free",
+             "tc_total",
+             "tc_current",
+             "ph_unmapd",
+             "root",
+             "call",
+             "rd_buf",
+             "c_rd_buf",
+             "tablets",
+             "log_cache",
+             "bbt",
+             "indep",
+    );
+}
+
+pub fn print_yb_io(
+    statistics: &BTreeMap<(String, String, String, String), Statistic>,
+)
+{
+    for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
+    {
+        if statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "glog_info_messages" && metric_type == "server").count() > 0
+        {
+            let info_messages = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "glog_info_messages" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+            let warning_messages = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "glog_warning_messages" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap_or_default();
+            let error_messages = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "glog_error_messages" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+            let log_bytes_logged: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "log_bytes_logged" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let log_reader_bytes_read: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "log_reader_bytes_read" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let rocksdb_flush_write_bytes: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "rocksdb_flush_write_bytes" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let rocksdb_compact_read_bytes: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "rocksdb_compact_read_bytes" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let rocksdb_compact_write_bytes: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "rocksdb_compact_write_bytes" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let log_cache_disk_reads: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "log_cache_disk_reads" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let log_sync_latency_count: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "log_sync_latency_count" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let log_sync_latency_sum: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "log_sync_latency_sum" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let log_append_latency_count: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "log_append_latency_count" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let log_append_latency_sum: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "log_append_latency_sum" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let rocksdb_write_raw_block_micros_count: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "rocksdb_write_raw_block_micros_count" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let rocksdb_write_raw_block_micros_sum: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "rocksdb_write_raw_block_micros_sum" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let rocksdb_sst_read_micros_count: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "rocksdb_sst_read_micros_count" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let rocksdb_sst_read_micros_sum: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "rocksdb_sst_read_micros_sum" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+
+            //println!("{}", rocksdb_flush_write_bytes);
+            //println!("{}", statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "rocksdb_write_raw_block_micros_count" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.last_value).sum::<f64>());
+            let time = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "glog_info_messages" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+            println!("{:50} {:8} {:10.2} {:10.2}|{:10.2} {:10.2} {:10.2} {:10.2} {:10.2} {:10.2}|{:10.0}|{:10.0} {:10.0}|{:10.2} {:10.2} {:10.2} {:10.2}",
+                     hostname,
+                     time.format("%H:%M:%S"),
+                     info_messages,
+                     warning_messages + error_messages,
+                     log_bytes_logged / (1024.*1024.),
+                     log_reader_bytes_read / (1024.*1024.),
+                     log_append_latency_count,
+                     log_cache_disk_reads,
+                     if (( log_append_latency_sum / log_append_latency_count) / 1000.).is_nan() {
+                         0.
+                     } else {
+                         ( log_append_latency_sum / log_append_latency_count) / 1000.
+                     },
+                     if (( log_sync_latency_sum / log_sync_latency_count) / 1000.).is_nan() {
+                         0.
+                     } else {
+                         ( log_sync_latency_sum / log_sync_latency_count) / 1000.
+                     },
+                     rocksdb_flush_write_bytes / (1024.*1024.),
+                     rocksdb_compact_read_bytes / (1024.*1024.),
+                     rocksdb_compact_write_bytes / (1024.*1024.),
+                     rocksdb_write_raw_block_micros_count,
+                     if (( rocksdb_write_raw_block_micros_sum / rocksdb_write_raw_block_micros_count) / 1000.).is_nan() {
+                         0.
+                     } else {
+                         ( rocksdb_write_raw_block_micros_sum / rocksdb_write_raw_block_micros_count) / 1000.
+                     },
+                     rocksdb_sst_read_micros_count,
+                     if (( rocksdb_sst_read_micros_sum / rocksdb_sst_read_micros_count) / 1000.).is_nan() {
+                         0.
+                     } else {
+                         ( rocksdb_sst_read_micros_sum / rocksdb_sst_read_micros_count) / 1000.
+                     },
+            );
+        }
+    }
+}
+
+pub fn print_yb_io_header()
+{
+    println!("{:50} {:8} {:10} {:>10}|{:10} {:10} {:10} {:10} {:10} {:>10}|{:>10}|{:10} {:>10}|{:10} {:10} {:10} {:>10}",
+             "",
+             "",
+             "",
+             "glog",
+             "",
+             "",
+             "",
+             "",
+             "",
+             "log",
+             "flush",
+             "",
+             "compaction",
+             "",
+             "",
+             "",
+             "rocksdb",
+    );
+    println!("{:50} {:8} {:>10} {:>10}|{:>10} {:>10} {:>10} {:>10} {:>10} {:>10}|{:>10}|{:>10} {:>10}|{:>10} {:>10} {:>10} {:>10}",
+             "hostname",
+             "time",
+             "info",
+             "warn+err",
+             "W_MBPS",
+             "R_MBPS",
+             "W_IOPS",
+             "R_IOPS",
+             "W_lat(ms)",
+             "sync_lat",
+             "W_MBPS",
+             "R_MBPS",
+             "W_MBPS",
+             "W_IOPS",
+             "W_lat(ms)",
+             "R_IOPS",
+             "R_lat(ms)",
     );
 }
 
@@ -671,8 +954,10 @@ pub fn print_sar_b(
             let pages_paged_out = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_vmstat_pgpgout").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
             let faults = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_vmstat_pgfault").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
             let major_faults = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_vmstat_pgfault").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-            println!("{:30} {:10.2} {:10.2} {:10.2} {:10.2}",
+            let time = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_vmstat_pgpgin").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+            println!("{:30} {:8} {:10.2} {:10.2} {:10.2} {:10.2}",
                      hostname,
+                     time.format("%H:%M:%S"),
                      pages_paged_in,
                      pages_paged_out,
                      faults,
@@ -684,8 +969,9 @@ pub fn print_sar_b(
 
 pub fn print_sar_b_header()
 {
-    println!("{:30} {:>10} {:>10} {:>10} {:>10}",
+    println!("{:30} {:8} {:>10} {:>10} {:>10} {:>10}",
              "hostname",
+             "time",
              "pgpgin/s",
              "pgpgout/s",
              "fault/s",
@@ -717,10 +1003,12 @@ pub fn print_sar_r(
             let memory_kernel_stack = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_KernelStack_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
             let memory_pagetables = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_PageTables_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
             let memory_virtual_memory = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_VmallocTotal_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
+            let time = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_MemFree_bytes").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
             if mode == "normal"
             {
-                println!("{:30} {:9.0} {:9.0} {:9.0} {:9.2} {:9.0} {:9.0} {:9.0} {:9.2} {:9.0} {:9.0} {:9.0}",
+                println!("{:30} {:8} {:9.0} {:9.0} {:9.0} {:9.2} {:9.0} {:9.0} {:9.0} {:9.2} {:9.0} {:9.0} {:9.0}",
                          hostname,
+                         time.format("%H:%M:%S"),
                          memory_free / (1024. * 1024.),
                          memory_available / (1024. * 1024.),
                          memory_used / (1024. * 1024.),
@@ -734,8 +1022,9 @@ pub fn print_sar_r(
                          memory_dirty / (1024. * 1024.)
                 );
             } else {
-                println!("{:30} {:9.0} {:9.0} {:9.0} {:9.2} {:9.0} {:9.0} {:9.0} {:9.2} {:9.0} {:9.0} {:9.0} {:9.0} {:9.0} {:9.0} {:9.0} {:9.0}",
+                println!("{:30} {:8} {:9.0} {:9.0} {:9.0} {:9.2} {:9.0} {:9.0} {:9.0} {:9.2} {:9.0} {:9.0} {:9.0} {:9.0} {:9.0} {:9.0} {:9.0} {:9.0}",
                          hostname,
+                         time.format("%H:%M:%S"),
                          memory_free / (1024. * 1024.),
                          memory_available / (1024. * 1024.),
                          memory_used / (1024. * 1024.),
@@ -764,8 +1053,9 @@ pub fn print_sar_r_header(
 {
     if mode == "normal"
     {
-        println!("{:30} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}",
+        println!("{:30} {:8} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}",
                  "hostname",
+                 "time",
                  "mbmemfree",
                  "mbavail",
                  "mbmemused",
@@ -781,8 +1071,9 @@ pub fn print_sar_r_header(
     }
     else
     {
-        println!("{:30} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}",
+        println!("{:30} {:8} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}",
                  "hostname",
+                 "time",
                  "mbmemfree",
                  "mbavail",
                  "mbmemused",
@@ -821,7 +1112,20 @@ pub fn print_sar_n_edev(
                 let transmit_carrier = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_network_transmit_carrier_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
                 let receive_fifo = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_network_receive_fifo_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
                 let transmit_fifo = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_network_transmit_fifo_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-                println!("{:30} {:10} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}", hostname, current_device, receive_errors, transmit_errors, transmit_collisions, receive_drop, transmit_drop, transmit_carrier, receive_fifo, transmit_fifo);
+                let time = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_network_receive_errs_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+                println!("{:30} {:8} {:10} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}",
+                         hostname,
+                         time.format("%H:%M:%S"),
+                         current_device,
+                         receive_errors,
+                         transmit_errors,
+                         transmit_collisions,
+                         receive_drop,
+                         transmit_drop,
+                         transmit_carrier,
+                         receive_fifo,
+                         transmit_fifo
+                );
             }
         }
     }
@@ -829,8 +1133,9 @@ pub fn print_sar_n_edev(
 
 pub fn print_sar_n_edev_header()
 {
-    println!("{:30} {:10} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}",
+    println!("{:30} {:8} {:10} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}",
              "hostname",
+             "time",
              "IFACE",
              "rxerr/s",
              "txerr/s",
@@ -860,7 +1165,19 @@ pub fn print_sar_n_dev(
                 let compressed_packets_received = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_network_receive_compressed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
                 let compressed_packets_transmit = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_network_transmit_compressed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
                 let multicast_packets_received = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_network_receive_multicast_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-                println!("{:30} {:10} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}", hostname, current_device, receive_packets, transmit_packets, receive_bytes / (1024. * 1024.), transmit_bytes / (1024. * 1024.), compressed_packets_received, compressed_packets_transmit, multicast_packets_received);
+                let time = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_network_receive_packets_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+                println!("{:30} {:8} {:10} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}",
+                         hostname,
+                         time.format("%H:%M:%S"),
+                         current_device,
+                         receive_packets,
+                         transmit_packets,
+                         receive_bytes / (1024. * 1024.),
+                         transmit_bytes / (1024. * 1024.),
+                         compressed_packets_received,
+                         compressed_packets_transmit,
+                         multicast_packets_received
+                );
             }
         }
     }
@@ -868,8 +1185,9 @@ pub fn print_sar_n_dev(
 
 pub fn print_sar_n_dev_header()
 {
-    println!("{:30} {:10} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}",
+    println!("{:30} {:8} {:10} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}",
              "hostname",
+             "time",
              "IFACE",
              "rxpck/s",
              "txpck/s",
@@ -895,8 +1213,10 @@ pub fn print_sar_n_sock(
             let sockets_raw = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_sockstat_RAW_inuse").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap_or_default();
             let sockets_frag = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_sockstat_FRAG_inuse").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap_or_default();
             let sockets_timedwait = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_sockstat_TCP_tw").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap_or_default();
-            println!("{:30} {:10.0} {:10.0} {:10.0} {:10.0} {:10.0} {:10.0}",
+            let time = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_sockstat_sockets_used").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap_or_default();
+            println!("{:30} {:8} {:10.0} {:10.0} {:10.0} {:10.0} {:10.0} {:10.0}",
                      hostname,
+                     time.format("%H:%M:%S"),
                      sockets_total,
                      sockets_tcp,
                      sockets_udp,
@@ -910,8 +1230,9 @@ pub fn print_sar_n_sock(
 
 pub fn print_sar_n_sock_header()
 {
-    println!("{:30} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10}",
+    println!("{:30} {:8} {:>10} {:>10} {:>10} {:>10} {:>10} {:>10}",
              "hostname",
+             "time",
              "totsck",
              "tcpsck",
              "udpsck",
@@ -921,6 +1242,82 @@ pub fn print_sar_n_sock_header()
     );
 }
 
+pub fn print_sar_n_sock6(
+    statistics: &BTreeMap<(String, String, String, String), Statistic>,
+)
+{
+    for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
+    {
+        if statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_sockstat_TCP6_inuse").count() > 0
+        {
+            let sockets6_tcp = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_sockstat_TCP6_inuse").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap_or_default();
+            let sockets6_udp= statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_sockstat_UDP6_inuse").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap_or_default();
+            let sockets6_raw= statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_sockstat_RAW6_inuse").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap_or_default();
+            let sockets6_frag= statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_sockstat_FRAG6_inuse").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap_or_default();
+            let time = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_sockstat_TCP6_inuse").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap_or_default();
+            println!("{:30} {:8} {:10.0} {:10.0} {:10.0} {:10.0}",
+                     hostname,
+                     time.format("%H:%M:%S"),
+                     sockets6_tcp,
+                     sockets6_udp,
+                     sockets6_raw,
+                     sockets6_frag,
+            );
+        }
+    }
+}
+
+pub fn print_sar_n_sock6_header()
+{
+    println!("{:30} {:8} {:>10} {:>10} {:>10} {:>10}",
+             "hostname",
+             "time",
+             "tcp6sck",
+             "udp6sck",
+             "raw6sck",
+             "ip6-frag",
+    );
+}
+
+pub fn print_sar_n_soft(
+    statistics: &BTreeMap<(String, String, String, String), Statistic>,
+)
+{
+    for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
+    {
+        if statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_softnet_processed_total").count() > 0
+        {
+            let soft_total = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_softnet_processed_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+            let soft_dropped = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_softnet_dropped_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+            let soft_squeezed = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_softnet_times_squeezed_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+            let soft_interproc_intr= statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_softnet_interpoc_intr_doesnotexist").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap_or_default();
+            let soft_flow_limit = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_softnet_flow_limit_doesnotexist").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap_or_default();
+            let time = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_softnet_processed_total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+            println!("{:30} {:8} {:10.2} {:10.2} {:10.2} {:10.2} {:10.2}",
+                     hostname,
+                     time.format("%H:%M:%S"),
+                     soft_total,
+                     soft_dropped,
+                     soft_squeezed,
+                     soft_interproc_intr,
+                     soft_flow_limit,
+            );
+        }
+    }
+}
+
+pub fn print_sar_n_soft_header()
+{
+    println!("{:30} {:8} {:>10} {:>10} {:>10} {:>10} {:>10}",
+             "hostname",
+             "time",
+             "total/s",
+             "dropd/s",
+             "squeezd/s",
+             "rx_rps/s",
+             "flw_lim/s",
+    );
+}
 pub fn print_sar_d(
     statistics: &BTreeMap<(String, String, String, String), Statistic>,
 )
@@ -947,7 +1344,18 @@ pub fn print_sar_d(
                 average_read_request_time_ms = if average_read_request_time_ms.is_nan() { 0. } else { average_read_request_time_ms };
                 let mut average_write_request_time_ms = (write_time * 1000.) / writes_completed;
                 average_write_request_time_ms = if average_write_request_time_ms.is_nan() { 0. } else { average_write_request_time_ms };
-                println!("{:30} {:10} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}", hostname, current_device, tps, read_bytes / (1024. * 1024.), write_bytes / (1024. * 1024.), (average_read_request_size + average_write_request_size) / (1024. * 1024.), queue_size, (average_read_request_time_ms + average_write_request_time_ms) / 2.);
+                let time = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+                println!("{:30} {:8} {:10} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}",
+                         hostname,
+                         time.format("%H:%M:%S"),
+                         current_device,
+                         tps,
+                         read_bytes / (1024. * 1024.),
+                         write_bytes / (1024. * 1024.),
+                         (average_read_request_size + average_write_request_size) / (1024. * 1024.),
+                         queue_size,
+                         (average_read_request_time_ms + average_write_request_time_ms) / 2.
+                );
             }
         }
     }
@@ -955,8 +1363,9 @@ pub fn print_sar_d(
 
 pub fn print_sar_d_header()
 {
-    println!("{:30} {:10} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}",
+    println!("{:30} {:8} {:10} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}",
              "hostname",
+             "time",
              "DEV",
              "tps",
              "rMB/s",
@@ -984,7 +1393,16 @@ pub fn print_iostat(
                 let write_bytes = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_written_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
                 let read_total = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_read_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.delta_value).next().unwrap();
                 let write_total = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_written_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.delta_value).next().unwrap();
-                println!("{:30} {:10} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}", hostname, current_device, tps, read_bytes / (1024. * 1024.), write_bytes / (1024. * 1024.), read_total / (1024. * 1024.), write_total / (1024. * 1024.));
+                let time = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+                println!("{:30} {:8} {:10} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}",
+                         hostname,
+                         time.format("%H:%M:%S"),
+                         current_device,
+                         tps, read_bytes / (1024. * 1024.),
+                         write_bytes / (1024. * 1024.),
+                         read_total / (1024. * 1024.),
+                         write_total / (1024. * 1024.),
+                );
             }
         }
     }
@@ -992,8 +1410,9 @@ pub fn print_iostat(
 
 pub fn print_iostat_header()
 {
-    println!("{:30} {:10} {:>9} {:>9} {:>9} {:>9} {:>9}",
+    println!("{:30} {:8} {:10} {:>9} {:>9} {:>9} {:>9} {:>9}",
              "hostname",
+             "time",
              "Device",
              "tps",
              "MB_read/s",
@@ -1034,10 +1453,11 @@ pub fn print_iostat_x(
                 read_average_request_size = if read_average_request_size.is_nan() { 0. } else { read_average_request_size };
                 let mut write_average_request_size = write_bytes / writes_completed;
                 write_average_request_size = if write_average_request_size.is_nan() { 0. } else { write_average_request_size };
+                let time = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
 
-
-                println!("{:30} {:10} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}",
+                println!("{:30} {:8} {:10} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}",
                          hostname,
+                         time.format("%H:%M:%S"),
                          current_device,
                          reads_completed,
                          writes_completed,
@@ -1060,8 +1480,9 @@ pub fn print_iostat_x(
 
 pub fn print_iostat_x_header()
 {
-    println!("{:30} {:10} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}",
+    println!("{:30} {:8} {:10} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}",
              "hostname",
+             "time",
              "Device",
              "r/s",
              "w/s",
@@ -1099,10 +1520,12 @@ pub fn print_sar_u(
             let guest_user = statistics.iter().filter(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_guest_seconds_total" && mode == "user" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
             let guest_nice = statistics.iter().filter(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_guest_seconds_total" && mode == "nice" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
             let total_time = user_time + system_time + iowait_time + irq_time + nice_time + softirq_time + steal_time + idle_time + guest_user + guest_nice;
+            let time = statistics.iter().filter(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "user" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
             if mode == "normal"
             {
-                println!("{:30} {:3} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}",
+                println!("{:30} {:8} {:3} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}",
                          hostname,
+                         time.format("%H:%M:%S"),
                          "all",
                          user_time / total_time * 100.,
                          nice_time / total_time * 100.,
@@ -1112,8 +1535,9 @@ pub fn print_sar_u(
                          idle_time / total_time * 100.
                 );
             } else {
-                println!("{:30} {:3} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}",
+                println!("{:30} {:8} {:3} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}",
                          hostname,
+                         time.format("%H:%M:%S"),
                          "all",
                          user_time / total_time * 100.,
                          nice_time / total_time * 100.,
@@ -1136,8 +1560,9 @@ pub fn print_sar_u_header(
 {
     if mode == "normal"
     {
-        println!("{:30} {:3} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}",
+        println!("{:30} {:8} {:3} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}",
                  "hostname",
+                 "time",
                  "CPU",
                  "%usr",
                  "%nice",
@@ -1149,8 +1574,9 @@ pub fn print_sar_u_header(
     }
     else
     {
-        println!("{:30} {:3} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}",
+        println!("{:30} {:8} {:3} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}",
                  "hostname",
+                 "time",
                  "CPU",
                  "%usr",
                  "%nice",

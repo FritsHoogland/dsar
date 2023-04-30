@@ -5,7 +5,7 @@ use anyhow::Result;
 //use log::*;
 use std::collections::BTreeMap;
 
-use dsar::{read_node_exporter_into_map, process_cpu_statistics, Statistic, print_sar_u, print_sar_u_header, print_sar_d, print_sar_d_header, print_sar_n_dev, print_sar_n_dev_header, print_sar_n_edev, print_sar_n_edev_header, print_sar_r, print_sar_r_header, print_iostat, print_iostat_header, print_iostat_x, print_iostat_x_header, print_sar_s, print_sar_s_header, print_sar_w, print_sar_w_header, print_sar_b, print_sar_b_header, print_yb_cpu, print_yb_cpu_header, print_yb_network, print_yb_network_header, print_yb_memory, print_yb_memory_header, print_sar_q, print_sar_q_header, print_sar_n_sock, print_sar_n_sock_header};
+use dsar::{read_node_exporter_into_map, process_statistics, Statistic, print_sar_u, print_sar_u_header, print_sar_d, print_sar_d_header, print_sar_n_dev, print_sar_n_dev_header, print_sar_n_edev, print_sar_n_edev_header, print_sar_r, print_sar_r_header, print_iostat, print_iostat_header, print_iostat_x, print_iostat_x_header, print_sar_s, print_sar_s_header, print_sar_w, print_sar_w_header, print_sar_b, print_sar_b_header, print_yb_cpu, print_yb_cpu_header, print_yb_network, print_yb_network_header, print_yb_memory, print_yb_memory_header, print_sar_q, print_sar_q_header, print_sar_n_sock, print_sar_n_sock_header, print_sar_n_sock6, print_sar_n_sock6_header, print_sar_n_soft, print_sar_n_soft_header, print_yb_io, print_yb_io_header};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 enum OutputOptions
@@ -27,6 +27,10 @@ enum OutputOptions
     SarNEdev,
     #[clap(name = "sar-n-SOCK")]
     SarNSock,
+    #[clap(name = "sar-n-SOCK6")]
+    SarNSock6,
+    #[clap(name = "sar-n-SOFT")]
+    SarNSoft,
     SarR,
     #[clap(name = "sar-r-ALL")]
     SarRAll,
@@ -35,6 +39,7 @@ enum OutputOptions
     YbCpu,
     YbNetwork,
     YbMemory,
+    YbIo,
 }
 
 #[derive(Debug, Parser)]
@@ -76,7 +81,7 @@ async fn main() -> Result<()>
     {
         interval.tick().await;
         let node_exporter_values = read_node_exporter_into_map(&args.hosts.split(",").collect(), &args.ports.split(",").collect(), args.parallel).await;
-        process_cpu_statistics(&node_exporter_values, &mut statistics).await;
+        process_statistics(&node_exporter_values, &mut statistics).await;
         if print_counter == 0 || print_counter % args.header_print == 0
         {
             match args.output {
@@ -90,6 +95,8 @@ async fn main() -> Result<()>
                 OutputOptions::SarNDev => print_sar_n_dev_header(),
                 OutputOptions::SarNEdev => print_sar_n_edev_header(),
                 OutputOptions::SarNSock => print_sar_n_sock_header(),
+                OutputOptions::SarNSock6 => print_sar_n_sock6_header(),
+                OutputOptions::SarNSoft => print_sar_n_soft_header(),
                 OutputOptions::SarR => print_sar_r_header("normal"),
                 OutputOptions::SarRAll => print_sar_r_header("all"),
                 OutputOptions::Iostat => print_iostat_header(),
@@ -97,6 +104,7 @@ async fn main() -> Result<()>
                 OutputOptions::YbCpu => print_yb_cpu_header(),
                 OutputOptions::YbNetwork => print_yb_network_header(),
                 OutputOptions::YbMemory => print_yb_memory_header(),
+                OutputOptions::YbIo => print_yb_io_header(),
             }
         };
         match args.output {
@@ -110,6 +118,8 @@ async fn main() -> Result<()>
             OutputOptions::SarNDev => print_sar_n_dev(&statistics),
             OutputOptions::SarNEdev => print_sar_n_edev(&statistics),
             OutputOptions::SarNSock => print_sar_n_sock(&statistics),
+            OutputOptions::SarNSock6 => print_sar_n_sock6(&statistics),
+            OutputOptions::SarNSoft => print_sar_n_soft(&statistics),
             OutputOptions::SarR => print_sar_r("normal", &statistics),
             OutputOptions::SarRAll => print_sar_r("all", &statistics),
             OutputOptions::Iostat => print_iostat(&statistics),
@@ -117,6 +127,7 @@ async fn main() -> Result<()>
             OutputOptions::YbCpu => print_yb_cpu(&statistics),
             OutputOptions::YbNetwork => print_yb_network(&statistics),
             OutputOptions::YbMemory => print_yb_memory(&statistics),
+            OutputOptions::YbIo => print_yb_io(&statistics),
         }
         print_counter += 1;
     }
