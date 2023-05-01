@@ -1022,7 +1022,7 @@ pub fn print_sar_r(
                          memory_commit / (memory_total + memory_swap_total) * 100.,
                          memory_active / (1024. * 1024.),
                          memory_inactive / (1024. * 1024.),
-                         memory_dirty / (1024. * 1024.)
+                         memory_dirty / (1024. * 1024.),
                 );
             } else {
                 println!("{:30} {:8} {:9.0} {:9.0} {:9.0} {:9.2} {:9.0} {:9.0} {:9.0} {:9.2} {:9.0} {:9.0} {:9.0} {:9.0} {:9.0} {:9.0} {:9.0} {:9.0}",
@@ -1043,7 +1043,7 @@ pub fn print_sar_r(
                          memory_slab / (1024. * 1024.),
                          memory_kernel_stack / (1024. * 1024.),
                          memory_pagetables / (1024. * 1024.),
-                         memory_virtual_memory / (1024. * 1024.)
+                         memory_virtual_memory / (1024. * 1024.),
                 );
             }
         }
@@ -1069,7 +1069,7 @@ pub fn print_sar_r_header(
                  "%commit",
                  "mbactive",
                  "mbinact",
-                 "mbdirty"
+                 "mbdirty",
         );
     }
     else
@@ -1092,7 +1092,7 @@ pub fn print_sar_r_header(
                  "mbslab",
                  "mbstack",
                  "mbpgtbl",
-                 "mbvmused"
+                 "mbvmused",
         );
     }
 }
@@ -1127,7 +1127,7 @@ pub fn print_sar_n_edev(
                          transmit_drop,
                          transmit_carrier,
                          receive_fifo,
-                         transmit_fifo
+                         transmit_fifo,
                 );
             }
         }
@@ -1147,7 +1147,7 @@ pub fn print_sar_n_edev_header()
              "txdrop/s",
              "txcarr/s",
              "rxfifo/s",
-             "txfifo/s"
+             "txfifo/s",
     );
 }
 
@@ -1179,7 +1179,7 @@ pub fn print_sar_n_dev(
                          transmit_bytes / (1024. * 1024.),
                          compressed_packets_received,
                          compressed_packets_transmit,
-                         multicast_packets_received
+                         multicast_packets_received,
                 );
             }
         }
@@ -1198,7 +1198,7 @@ pub fn print_sar_n_dev_header()
              "txMB/s",
              "rxcmp/s",
              "txcmp/s",
-             "rxmcst/s"
+             "rxmcst/s",
     );
 }
 
@@ -1375,7 +1375,7 @@ pub fn print_sar_d_header()
              "wMB/s",
              "areq-sz",
              "aqu-sz",
-             "await"
+             "await",
     );
 }
 
@@ -1421,7 +1421,7 @@ pub fn print_iostat_header()
              "MB_read/s",
              "MB_wrtn/s",
              "MB_read",
-             "MB_wrtn"
+             "MB_wrtn",
     );
 }
 
@@ -1538,7 +1538,7 @@ pub fn print_sar_u(
                              system_time / total_time * 100.,
                              iowait_time / total_time * 100.,
                              steal_time / total_time * 100.,
-                             idle_time / total_time * 100.
+                             idle_time / total_time * 100.,
                     );
                 },
                 "all" => {
@@ -1555,7 +1555,7 @@ pub fn print_sar_u(
                              softirq_time / total_time * 100.,
                              guest_user / total_time * 100.,
                              guest_nice / total_time * 100.,
-                             idle_time / total_time * 100.
+                             idle_time / total_time * 100.,
                     );
                 },
                 "extended" => {
