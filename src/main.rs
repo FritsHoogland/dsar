@@ -40,6 +40,7 @@ enum OutputOptions
     YbNetwork,
     YbMemory,
     YbIo,
+    CpuAll,
 }
 
 #[derive(Debug, Parser)]
@@ -105,6 +106,7 @@ async fn main() -> Result<()>
                 OutputOptions::YbNetwork => print_yb_network_header(),
                 OutputOptions::YbMemory => print_yb_memory_header(),
                 OutputOptions::YbIo => print_yb_io_header(),
+                OutputOptions::CpuAll => print_sar_u_header("extended"),
             }
         };
         match args.output {
@@ -128,6 +130,7 @@ async fn main() -> Result<()>
             OutputOptions::YbNetwork => print_yb_network(&statistics),
             OutputOptions::YbMemory => print_yb_memory(&statistics),
             OutputOptions::YbIo => print_yb_io(&statistics),
+            OutputOptions::CpuAll => print_sar_u("extended", &statistics),
         }
         print_counter += 1;
     }

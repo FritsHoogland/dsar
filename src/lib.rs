@@ -253,7 +253,7 @@ pub async fn process_statistics(
                         .entry(( hostname.clone(), sample.metric.clone(), cpu_number.to_string(), "".to_string() ))
                         .and_modify( |row| {
                             row.delta_value = value - row.last_value;
-                            row.per_second_value = row.delta_value / (sample.timestamp.signed_duration_since(row.last_timestamp).num_milliseconds() as f64 / 1000.);
+                            row.per_second_value = row.delta_value / (sample.timestamp.signed_duration_since(row.last_timestamp).num_milliseconds() as f64 / 1000.0);
                             row.last_value = value;
                             row.last_timestamp = sample.timestamp;
                             debug!("{} cpu: {}: last_value: {}, last_timestamp: {}, delta_value: {}, per_second_value: {}", sample.metric, cpu_number, row.last_value, row.last_timestamp, row.delta_value, row.per_second_value);
@@ -475,7 +475,7 @@ pub async fn process_statistics(
                                 row.per_second_value = row.delta_value / (sample.timestamp.signed_duration_since(row.last_timestamp).num_milliseconds() as f64 / 1000.0);
                                 row.last_value = value;
                                 row.last_timestamp = sample.timestamp;
-                                warn!("{} last_value: {}, last_timestamp: {}, delta_value: {}, per_second_value: {}", sample.metric, row.last_value, row.last_timestamp, row.delta_value, row.per_second_value);
+                                debug!("{} last_value: {}, last_timestamp: {}, delta_value: {}, per_second_value: {}", sample.metric, row.last_value, row.last_timestamp, row.delta_value, row.per_second_value);
                             } )
                             .or_insert(
                                 Statistic
@@ -498,9 +498,10 @@ pub async fn process_statistics(
                 for metric_name in vec!["node_schedstat_running_seconds_total", "node_schedstat_waiting_seconds_total"]
                 {
                     let per_second_value = statistics.iter().filter(|((host, metric, cpu , _), _)| host == hostname && metric == metric_name && cpu != "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                    let last_timestamp = statistics.iter().filter(|((host, metric, cpu , _), _)| host == hostname && metric == metric_name && cpu != "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
                     statistics.entry( (hostname.to_string(), metric_name.to_string(), "total".to_string(), "".to_string()))
-                        .and_modify(|row| { row.per_second_value = per_second_value } )
-                        .or_insert( Statistic { per_second_value:  per_second_value, ..Default::default() });
+                        .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; } )
+                        .or_insert( Statistic { per_second_value:  per_second_value, last_timestamp: last_timestamp, ..Default::default() });
                 }
             };
             // node_cpu_seconds_total
@@ -509,9 +510,10 @@ pub async fn process_statistics(
                 for mode in vec!["idle", "iowait", "irq", "nice", "softirq", "steal", "system", "user"]
                 {
                     let per_second_value = statistics.iter().filter(|((host, metric, cpu, run_mode), _)| host == hostname && metric == "node_cpu_seconds_total" && cpu != "total" && run_mode == mode).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                    let last_timestamp = statistics.iter().filter(|((host, metric, cpu, run_mode), _)| host == hostname && metric == "node_cpu_seconds_total" && cpu != "total" && run_mode == mode).map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
                     statistics.entry( (hostname.to_string(), "node_cpu_seconds_total".to_string(), "total".to_string(), mode.to_string()))
-                        .and_modify(|row| { row.per_second_value = per_second_value } )
-                        .or_insert( Statistic { per_second_value:  per_second_value, ..Default::default() });
+                        .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; } )
+                        .or_insert( Statistic { per_second_value:  per_second_value, last_timestamp: last_timestamp, ..Default::default() });
                 }
             };
             // node_cpu_guest_seconds_total
@@ -520,9 +522,10 @@ pub async fn process_statistics(
                 for mode in vec!["nice", "user" ]
                 {
                     let per_second_value = statistics.iter().filter(|((host, metric, cpu, run_mode), _)| host == hostname && metric == "node_cpu_guest_seconds_total" && cpu != "total" && run_mode == mode).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                    let last_timestamp = statistics.iter().filter(|((host, metric, cpu, run_mode), _)| host == hostname && metric == "node_cpu_guest_seconds_total" && cpu != "total" && run_mode == mode).map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
                     statistics.entry( (hostname.to_string(), "node_cpu_guest_seconds_total".to_string(), "total".to_string(), mode.to_string()))
-                        .and_modify(|row| { row.per_second_value = per_second_value } )
-                        .or_insert( Statistic { per_second_value:  per_second_value, ..Default::default() });
+                        .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; } )
+                        .or_insert( Statistic { per_second_value:  per_second_value, last_timestamp: last_timestamp, ..Default::default() });
                 }
             };
             // disk IO
@@ -534,9 +537,10 @@ pub async fn process_statistics(
                                              "node_disk_io_time_seconds_total", "node_disk_io_time_weighted_seconds_total"]
                 {
                     let per_second_value = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == metric_name && device != "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                    let last_timestamp = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == metric_name && device != "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
                     statistics.entry( (hostname.to_string(), metric_name.to_string(), "total".to_string(), "".to_string()))
-                        .and_modify(|row| { row.per_second_value = per_second_value } )
-                        .or_insert( Statistic { per_second_value:  per_second_value, ..Default::default() });
+                        .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; } )
+                        .or_insert( Statistic { per_second_value:  per_second_value, last_timestamp: last_timestamp, ..Default::default() });
                 }
             };
             // network IO
@@ -548,9 +552,10 @@ pub async fn process_statistics(
                                              "node_network_transmit_carrier_total", "node_network_receive_fifo_total", "node_network_transmit_fifo_total"]
                 {
                     let per_second_value = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == metric_name && device != "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                    let last_timestamp = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == metric_name && device != "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
                     statistics.entry( (hostname.to_string(), metric_name.to_string(), "total".to_string(), "".to_string()))
-                        .and_modify(|row| { row.per_second_value = per_second_value } )
-                        .or_insert( Statistic { per_second_value:  per_second_value, ..Default::default() });
+                        .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; } )
+                        .or_insert( Statistic { per_second_value:  per_second_value, last_timestamp: last_timestamp, ..Default::default() });
                 }
             };
         }
@@ -858,8 +863,6 @@ pub fn print_yb_io(
             let rocksdb_sst_read_micros_count: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "rocksdb_sst_read_micros_count" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
             let rocksdb_sst_read_micros_sum: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "rocksdb_sst_read_micros_sum" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
 
-            //println!("{}", rocksdb_flush_write_bytes);
-            //println!("{}", statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "rocksdb_write_raw_block_micros_count" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.last_value).sum::<f64>());
             let time = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "glog_info_messages" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
             println!("{:50} {:8} {:10.2} {:10.2}|{:10.2} {:10.2} {:10.2} {:10.2} {:10.2} {:10.2}|{:10.0}|{:10.0} {:10.0}|{:10.2} {:10.2} {:10.2} {:10.2}",
                      hostname,
@@ -1509,47 +1512,71 @@ pub fn print_sar_u(
     {
         if statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_cpu_seconds_total").count() > 0
         {
-            let user_time = statistics.iter().filter(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "user" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-            let system_time = statistics.iter().filter(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "system" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-            let iowait_time = statistics.iter().filter(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "iowait" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-            let irq_time = statistics.iter().filter(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "irq" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-            let nice_time = statistics.iter().filter(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "nice" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-            let softirq_time = statistics.iter().filter(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "softirq" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-            let steal_time = statistics.iter().filter(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "steal" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-            let idle_time = statistics.iter().filter(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "idle" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-            let guest_user = statistics.iter().filter(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_guest_seconds_total" && mode == "user" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-            let guest_nice = statistics.iter().filter(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_guest_seconds_total" && mode == "nice" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+            let user_time = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "user" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+            let system_time = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "system" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+            let iowait_time = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "iowait" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+            let irq_time = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "irq" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+            let nice_time = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "nice" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+            let softirq_time = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "softirq" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+            let steal_time = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "steal" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+            let idle_time = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "idle" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+            let guest_user = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_guest_seconds_total" && mode == "user" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+            let guest_nice = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_guest_seconds_total" && mode == "nice" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+            let schedstat_running = statistics.iter().find(|((host, metric, cpu, _), _)| host == hostname && metric == "node_schedstat_running_seconds_total" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+            let schedstat_waiting = statistics.iter().find(|((host, metric, cpu, _), _)| host == hostname && metric == "node_schedstat_waiting_seconds_total" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
             let total_time = user_time + system_time + iowait_time + irq_time + nice_time + softirq_time + steal_time + idle_time + guest_user + guest_nice;
-            let time = statistics.iter().filter(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "user" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
-            if mode == "normal"
+            let time = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "user" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
+            match mode
             {
-                println!("{:30} {:8} {:3} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}",
-                         hostname,
-                         time.format("%H:%M:%S"),
-                         "all",
-                         user_time / total_time * 100.,
-                         nice_time / total_time * 100.,
-                         system_time / total_time * 100.,
-                         iowait_time / total_time * 100.,
-                         steal_time / total_time * 100.,
-                         idle_time / total_time * 100.
-                );
-            } else {
-                println!("{:30} {:8} {:3} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}",
-                         hostname,
-                         time.format("%H:%M:%S"),
-                         "all",
-                         user_time / total_time * 100.,
-                         nice_time / total_time * 100.,
-                         system_time / total_time * 100.,
-                         iowait_time / total_time * 100.,
-                         steal_time / total_time * 100.,
-                         irq_time / total_time * 100.,
-                         softirq_time / total_time * 100.,
-                         guest_user / total_time * 100.,
-                         guest_nice / total_time * 100.,
-                         idle_time / total_time * 100.
-                );
+                "normal" => {
+                    println!("{:30} {:8} {:3} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}",
+                             hostname,
+                             time.format("%H:%M:%S"),
+                             "all",
+                             user_time / total_time * 100.,
+                             nice_time / total_time * 100.,
+                             system_time / total_time * 100.,
+                             iowait_time / total_time * 100.,
+                             steal_time / total_time * 100.,
+                             idle_time / total_time * 100.
+                    );
+                },
+                "all" => {
+                    println!("{:30} {:8} {:3} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}",
+                             hostname,
+                             time.format("%H:%M:%S"),
+                             "all",
+                             user_time / total_time * 100.,
+                             nice_time / total_time * 100.,
+                             system_time / total_time * 100.,
+                             iowait_time / total_time * 100.,
+                             steal_time / total_time * 100.,
+                             irq_time / total_time * 100.,
+                             softirq_time / total_time * 100.,
+                             guest_user / total_time * 100.,
+                             guest_nice / total_time * 100.,
+                             idle_time / total_time * 100.
+                    );
+                },
+                "extended" => {
+                    println!("{:30} {:8} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}",
+                             hostname,
+                             time.format("%H:%M:%S"),
+                             user_time,
+                             nice_time,
+                             system_time,
+                             iowait_time,
+                             steal_time,
+                             irq_time,
+                             softirq_time,
+                             guest_user,
+                             guest_nice,
+                             idle_time,
+                             schedstat_running,
+                             schedstat_waiting,
+                    );
+                },
+                &_ => {},
             }
         }
     }
@@ -1558,36 +1585,56 @@ pub fn print_sar_u_header(
    mode: &str,
 )
 {
-    if mode == "normal"
+    match mode
     {
-        println!("{:30} {:8} {:3} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}",
-                 "hostname",
-                 "time",
-                 "CPU",
-                 "%usr",
-                 "%nice",
-                 "%sys",
-                 "%iowait",
-                 "%steal",
-                 "%idle"
-        );
-    }
-    else
-    {
-        println!("{:30} {:8} {:3} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}",
-                 "hostname",
-                 "time",
-                 "CPU",
-                 "%usr",
-                 "%nice",
-                 "%sys",
-                 "%iowait",
-                 "%steal",
-                 "%irq",
-                 "%soft",
-                 "%guest",
-                 "%gnice",
-                 "%idle"
-        );
+        "normal" => {
+            println!("{:30} {:8} {:3} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}",
+                     "hostname",
+                     "time",
+                     "CPU",
+                     "%usr",
+                     "%nice",
+                     "%sys",
+                     "%iowait",
+                     "%steal",
+                     "%idle",
+            );
+        }
+        "all" => {
+            println!("{:30} {:8} {:3} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}",
+                     "hostname",
+                     "time",
+                     "CPU",
+                     "%usr",
+                     "%nice",
+                     "%sys",
+                     "%iowait",
+                     "%steal",
+                     "%irq",
+                     "%soft",
+                     "%guest",
+                     "%gnice",
+                     "%idle",
+            );
+        },
+        "extended" => {
+            println!("{:30} {:8} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9} {:>9}",
+                     "hostname",
+                     "time",
+                     "usr",
+                     "nice",
+                     "sys",
+                     "iowait",
+                     "steal",
+                     "irq",
+                     "soft",
+                     "guest",
+                     "gnice",
+                     "idle",
+                     "sch_run",
+                     "sch_wait",
+            );
+        },
+        &_ => {},
     }
 }
