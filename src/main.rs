@@ -81,7 +81,7 @@ async fn main() -> Result<()>
     loop
     {
         interval.tick().await;
-        let node_exporter_values = read_node_exporter_into_map(&args.hosts.split(",").collect(), &args.ports.split(",").collect(), args.parallel).await;
+        let node_exporter_values = read_node_exporter_into_map(&args.hosts.split(',').collect(), &args.ports.split(',').collect(), args.parallel).await;
         process_statistics(&node_exporter_values, &mut statistics).await;
         if print_counter == 0 || print_counter % args.header_print == 0
         {

@@ -5,7 +5,6 @@ use std::collections::BTreeMap;
 use sync::mpsc::channel;
 use time::Duration;
 use log::*;
-use rayon;
 use chrono::{DateTime, Utc};
 use itertools::Itertools;
 
@@ -51,7 +50,7 @@ pub async fn read_node_exporter_into_map(
                 for endpoint in endpoints {
                     let tx = tx.clone();
                     s.spawn(move |_| {
-                        let node_exporter_values = read_node_exporter(&host, &port, &endpoint);
+                        let node_exporter_values = read_node_exporter(host, port, endpoint);
                         tx.send((format!("{}:{}:{}", host, port, endpoint), node_exporter_values)).expect("error sending data via tx (node_exporter)");
                     });
                 }
@@ -490,48 +489,48 @@ pub async fn process_statistics(
             }
         }
 
-        for (hostname, _) in node_exporter_values
+        for hostname in node_exporter_values.keys()
         {
             // node_schedstat_running_seconds_total && node_schedstat_waiting_seconds_total
             if statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_schedstat_running_seconds_total").count() > 0
             {
-                for metric_name in vec!["node_schedstat_running_seconds_total", "node_schedstat_waiting_seconds_total"]
+                for metric_name in &["node_schedstat_running_seconds_total", "node_schedstat_waiting_seconds_total"]
                 {
                     let per_second_value = statistics.iter().filter(|((host, metric, cpu , _), _)| host == hostname && metric == metric_name && cpu != "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
                     let last_timestamp = statistics.iter().filter(|((host, metric, cpu , _), _)| host == hostname && metric == metric_name && cpu != "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
                     statistics.entry( (hostname.to_string(), metric_name.to_string(), "total".to_string(), "".to_string()))
                         .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; } )
-                        .or_insert( Statistic { per_second_value:  per_second_value, last_timestamp: last_timestamp, ..Default::default() });
+                        .or_insert( Statistic { per_second_value, last_timestamp, ..Default::default() });
                 }
             };
             // node_cpu_seconds_total
             if statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_cpu_seconds_total").count() > 0
             {
-                for mode in vec!["idle", "iowait", "irq", "nice", "softirq", "steal", "system", "user"]
+                for mode in &["idle", "iowait", "irq", "nice", "softirq", "steal", "system", "user"]
                 {
                     let per_second_value = statistics.iter().filter(|((host, metric, cpu, run_mode), _)| host == hostname && metric == "node_cpu_seconds_total" && cpu != "total" && run_mode == mode).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
                     let last_timestamp = statistics.iter().filter(|((host, metric, cpu, run_mode), _)| host == hostname && metric == "node_cpu_seconds_total" && cpu != "total" && run_mode == mode).map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
                     statistics.entry( (hostname.to_string(), "node_cpu_seconds_total".to_string(), "total".to_string(), mode.to_string()))
                         .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; } )
-                        .or_insert( Statistic { per_second_value:  per_second_value, last_timestamp: last_timestamp, ..Default::default() });
+                        .or_insert( Statistic { per_second_value, last_timestamp, ..Default::default() });
                 }
             };
             // node_cpu_guest_seconds_total
             if statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_cpu_guest_seconds_total").count() > 0
             {
-                for mode in vec!["nice", "user" ]
+                for mode in &["nice", "user" ]
                 {
                     let per_second_value = statistics.iter().filter(|((host, metric, cpu, run_mode), _)| host == hostname && metric == "node_cpu_guest_seconds_total" && cpu != "total" && run_mode == mode).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
                     let last_timestamp = statistics.iter().filter(|((host, metric, cpu, run_mode), _)| host == hostname && metric == "node_cpu_guest_seconds_total" && cpu != "total" && run_mode == mode).map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
                     statistics.entry( (hostname.to_string(), "node_cpu_guest_seconds_total".to_string(), "total".to_string(), mode.to_string()))
                         .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; } )
-                        .or_insert( Statistic { per_second_value:  per_second_value, last_timestamp: last_timestamp, ..Default::default() });
+                        .or_insert( Statistic { per_second_value, last_timestamp, ..Default::default() });
                 }
             };
             // disk IO
             if statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_disk_io_time_seconds_total").count() > 0
             {
-                for metric_name in vec!["node_disk_read_bytes_total", "node_disk_read_time_seconds_total", "node_disk_reads_completed_total", "node_disk_reads_merged_total",
+                for metric_name in &["node_disk_read_bytes_total", "node_disk_read_time_seconds_total", "node_disk_reads_completed_total", "node_disk_reads_merged_total",
                                              "node_disk_written_bytes_total", "node_disk_write_time_seconds_total", "node_disk_writes_completed_total", "node_disk_writes_merged_total",
                                              "node_disk_discarded_sectors_total", "node_disk_discard_time_seconds_total", "node_disk_discards_completed_total", "node_disk_discards_merged_total",
                                              "node_disk_io_time_seconds_total", "node_disk_io_time_weighted_seconds_total"]
@@ -540,13 +539,13 @@ pub async fn process_statistics(
                     let last_timestamp = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == metric_name && device != "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
                     statistics.entry( (hostname.to_string(), metric_name.to_string(), "total".to_string(), "".to_string()))
                         .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; } )
-                        .or_insert( Statistic { per_second_value:  per_second_value, last_timestamp: last_timestamp, ..Default::default() });
+                        .or_insert( Statistic { per_second_value, last_timestamp, ..Default::default() });
                 }
             };
             // network IO
             if statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_network_receive_packets_total").count() > 0
             {
-                for metric_name in vec!["node_network_receive_packets_total", "node_network_transmit_packets_total", "node_network_receive_bytes_total", "node_network_transmit_bytes_total",
+                for metric_name in &["node_network_receive_packets_total", "node_network_transmit_packets_total", "node_network_receive_bytes_total", "node_network_transmit_bytes_total",
                                              "node_network_receive_compressed_total", "node_network_transmit_compressed_total", "node_network_receive_multicast_total",
                                              "node_network_receive_errs_total", "node_network_transmit_errs_total", "node_network_transmit_colls_total", "node_network_receive_drop_total", "node_network_transmit_drop_total",
                                              "node_network_transmit_carrier_total", "node_network_receive_fifo_total", "node_network_transmit_fifo_total"]
@@ -555,7 +554,7 @@ pub async fn process_statistics(
                     let last_timestamp = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == metric_name && device != "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
                     statistics.entry( (hostname.to_string(), metric_name.to_string(), "total".to_string(), "".to_string()))
                         .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; } )
-                        .or_insert( Statistic { per_second_value:  per_second_value, last_timestamp: last_timestamp, ..Default::default() });
+                        .or_insert( Statistic { per_second_value, last_timestamp, ..Default::default() });
                 }
             };
         }
