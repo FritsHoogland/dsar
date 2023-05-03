@@ -5,7 +5,7 @@ use anyhow::Result;
 //use log::*;
 use std::collections::BTreeMap;
 
-use dsar::{read_node_exporter_into_map, process_statistics, Statistic, print_sar_u, print_sar_u_header, print_sar_d, print_sar_d_header, print_sar_n_dev, print_sar_n_dev_header, print_sar_n_edev, print_sar_n_edev_header, print_sar_r, print_sar_r_header, print_iostat, print_iostat_header, print_iostat_x, print_iostat_x_header, print_sar_s, print_sar_s_header, print_sar_w, print_sar_w_header, print_sar_b, print_sar_b_header, print_yb_cpu, print_yb_cpu_header, print_yb_network, print_yb_network_header, print_yb_memory, print_yb_memory_header, print_sar_q, print_sar_q_header, print_sar_n_sock, print_sar_n_sock_header, print_sar_n_sock6, print_sar_n_sock6_header, print_sar_n_soft, print_sar_n_soft_header, print_yb_io, print_yb_io_header};
+use dsar::{read_node_exporter_into_map, process_statistics, Statistic, print_sar_u, print_sar_u_header, print_sar_d, print_sar_d_header, print_sar_n_dev, print_sar_n_dev_header, print_sar_n_edev, print_sar_n_edev_header, print_sar_r, print_sar_r_header, print_iostat, print_iostat_header, print_iostat_x, print_iostat_x_header, print_sar_s, print_sar_s_header, print_sar_w, print_sar_w_header, print_sar_b, print_sar_b_header, print_yb_cpu, print_yb_cpu_header, print_yb_network, print_yb_network_header, print_yb_memory, print_yb_memory_header, print_sar_q, print_sar_q_header, print_sar_n_sock, print_sar_n_sock_header, print_sar_n_sock6, print_sar_n_sock6_header, print_sar_n_soft, print_sar_n_soft_header, print_yb_io, print_yb_io_header, print_xfs_iops, print_xfs_iops_header};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 enum OutputOptions
@@ -41,6 +41,7 @@ enum OutputOptions
     YbMemory,
     YbIo,
     CpuAll,
+    XfsIops,
 }
 
 #[derive(Debug, Parser)]
@@ -107,6 +108,7 @@ async fn main() -> Result<()>
                 OutputOptions::YbMemory => print_yb_memory_header(),
                 OutputOptions::YbIo => print_yb_io_header(),
                 OutputOptions::CpuAll => print_sar_u_header("extended"),
+                OutputOptions::XfsIops => print_xfs_iops_header(),
             }
         };
         match args.output {
@@ -131,6 +133,7 @@ async fn main() -> Result<()>
             OutputOptions::YbMemory => print_yb_memory(&statistics),
             OutputOptions::YbIo => print_yb_io(&statistics),
             OutputOptions::CpuAll => print_sar_u("extended", &statistics),
+            OutputOptions::XfsIops => print_xfs_iops(&statistics),
         }
         print_counter += 1;
     }

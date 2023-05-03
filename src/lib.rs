@@ -291,7 +291,8 @@ pub async fn process_statistics(
                 "node_disk_read_bytes_total" | "node_disk_read_time_seconds_total" | "node_disk_reads_completed_total" | "node_disk_reads_merged_total" |
                 "node_disk_written_bytes_total" | "node_disk_write_time_seconds_total" | "node_disk_writes_completed_total" | "node_disk_writes_merged_total" |
                 "node_disk_discarded_sectors_total" | "node_disk_discard_time_seconds_total" | "node_disk_discards_completed_total" | "node_disk_discards_merged_total" |
-                "node_disk_io_time_seconds_total" | "node_disk_io_time_weighted_seconds_total" => {
+                "node_disk_io_time_seconds_total" | "node_disk_io_time_weighted_seconds_total" |
+                "node_xfs_read_calls_total" | "node_xfs_write_calls_total" => {
                     let Value::Counter(value) = sample.value else { panic!("{} value enum type should be Counter!", sample.metric)};
                     let device = sample.labels.iter().find(|(label, _)| *label == "device").map(|(_, value)| value).unwrap();
                     // do not store device mapper disk statistics
@@ -457,8 +458,11 @@ pub async fn process_statistics(
                 "log_append_latency_sum" |
                 "log_cache_disk_reads" |
                 "rocksdb_flush_write_bytes" |
+                "intentsdb_rocksdb_flush_write_bytes" |
                 "rocksdb_compact_read_bytes" |
+                "intentsdb_rocksdb_compact_read_bytes" |
                 "rocksdb_compact_write_bytes" |
+                "intentsdb_rocksdb_compact_write_bytes" |
                 "rocksdb_write_raw_block_micros_count" |
                 "rocksdb_write_raw_block_micros_sum" |
                 "rocksdb_sst_read_micros_count" |
@@ -491,67 +495,73 @@ pub async fn process_statistics(
 
         for hostname in node_exporter_values.keys()
         {
+            // create total
             // node_schedstat_running_seconds_total && node_schedstat_waiting_seconds_total
             if statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_schedstat_running_seconds_total").count() > 0
             {
                 for metric_name in &["node_schedstat_running_seconds_total", "node_schedstat_waiting_seconds_total"]
                 {
                     let per_second_value = statistics.iter().filter(|((host, metric, cpu , _), _)| host == hostname && metric == metric_name && cpu != "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
-                    let last_timestamp = statistics.iter().filter(|((host, metric, cpu , _), _)| host == hostname && metric == metric_name && cpu != "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+                    let last_timestamp = statistics.iter().find(|((host, metric, cpu , _), _)| host == hostname && metric == metric_name && cpu != "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
                     statistics.entry( (hostname.to_string(), metric_name.to_string(), "total".to_string(), "".to_string()))
                         .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; } )
                         .or_insert( Statistic { per_second_value, last_timestamp, ..Default::default() });
                 }
             };
+            // create total
             // node_cpu_seconds_total
             if statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_cpu_seconds_total").count() > 0
             {
                 for mode in &["idle", "iowait", "irq", "nice", "softirq", "steal", "system", "user"]
                 {
                     let per_second_value = statistics.iter().filter(|((host, metric, cpu, run_mode), _)| host == hostname && metric == "node_cpu_seconds_total" && cpu != "total" && run_mode == mode).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
-                    let last_timestamp = statistics.iter().filter(|((host, metric, cpu, run_mode), _)| host == hostname && metric == "node_cpu_seconds_total" && cpu != "total" && run_mode == mode).map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+                    let last_timestamp = statistics.iter().find(|((host, metric, cpu, run_mode), _)| host == hostname && metric == "node_cpu_seconds_total" && cpu != "total" && run_mode == mode).map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
                     statistics.entry( (hostname.to_string(), "node_cpu_seconds_total".to_string(), "total".to_string(), mode.to_string()))
                         .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; } )
                         .or_insert( Statistic { per_second_value, last_timestamp, ..Default::default() });
                 }
             };
+            // create total
             // node_cpu_guest_seconds_total
             if statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_cpu_guest_seconds_total").count() > 0
             {
                 for mode in &["nice", "user" ]
                 {
                     let per_second_value = statistics.iter().filter(|((host, metric, cpu, run_mode), _)| host == hostname && metric == "node_cpu_guest_seconds_total" && cpu != "total" && run_mode == mode).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
-                    let last_timestamp = statistics.iter().filter(|((host, metric, cpu, run_mode), _)| host == hostname && metric == "node_cpu_guest_seconds_total" && cpu != "total" && run_mode == mode).map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+                    let last_timestamp = statistics.iter().find(|((host, metric, cpu, run_mode), _)| host == hostname && metric == "node_cpu_guest_seconds_total" && cpu != "total" && run_mode == mode).map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
                     statistics.entry( (hostname.to_string(), "node_cpu_guest_seconds_total".to_string(), "total".to_string(), mode.to_string()))
                         .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; } )
                         .or_insert( Statistic { per_second_value, last_timestamp, ..Default::default() });
                 }
             };
+            // create total
             // disk IO
             if statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_disk_io_time_seconds_total").count() > 0
             {
                 for metric_name in &["node_disk_read_bytes_total", "node_disk_read_time_seconds_total", "node_disk_reads_completed_total", "node_disk_reads_merged_total",
-                                             "node_disk_written_bytes_total", "node_disk_write_time_seconds_total", "node_disk_writes_completed_total", "node_disk_writes_merged_total",
-                                             "node_disk_discarded_sectors_total", "node_disk_discard_time_seconds_total", "node_disk_discards_completed_total", "node_disk_discards_merged_total",
-                                             "node_disk_io_time_seconds_total", "node_disk_io_time_weighted_seconds_total"]
+                                            "node_disk_written_bytes_total", "node_disk_write_time_seconds_total", "node_disk_writes_completed_total", "node_disk_writes_merged_total",
+                                            "node_disk_discarded_sectors_total", "node_disk_discard_time_seconds_total", "node_disk_discards_completed_total", "node_disk_discards_merged_total",
+                                            "node_disk_io_time_seconds_total", "node_disk_io_time_weighted_seconds_total",
+                                            "node_xfs_read_calls_total", "node_xfs_write_calls_total" ]
                 {
                     let per_second_value = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == metric_name && device != "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
-                    let last_timestamp = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == metric_name && device != "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+                    let last_timestamp = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == metric_name && device != "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
                     statistics.entry( (hostname.to_string(), metric_name.to_string(), "total".to_string(), "".to_string()))
                         .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; } )
                         .or_insert( Statistic { per_second_value, last_timestamp, ..Default::default() });
                 }
             };
+            // create total
             // network IO
             if statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_network_receive_packets_total").count() > 0
             {
                 for metric_name in &["node_network_receive_packets_total", "node_network_transmit_packets_total", "node_network_receive_bytes_total", "node_network_transmit_bytes_total",
-                                             "node_network_receive_compressed_total", "node_network_transmit_compressed_total", "node_network_receive_multicast_total",
-                                             "node_network_receive_errs_total", "node_network_transmit_errs_total", "node_network_transmit_colls_total", "node_network_receive_drop_total", "node_network_transmit_drop_total",
-                                             "node_network_transmit_carrier_total", "node_network_receive_fifo_total", "node_network_transmit_fifo_total"]
+                                            "node_network_receive_compressed_total", "node_network_transmit_compressed_total", "node_network_receive_multicast_total",
+                                            "node_network_receive_errs_total", "node_network_transmit_errs_total", "node_network_transmit_colls_total", "node_network_receive_drop_total", "node_network_transmit_drop_total",
+                                            "node_network_transmit_carrier_total", "node_network_receive_fifo_total", "node_network_transmit_fifo_total"]
                 {
                     let per_second_value = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == metric_name && device != "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
-                    let last_timestamp = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == metric_name && device != "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+                    let last_timestamp = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == metric_name && device != "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
                     statistics.entry( (hostname.to_string(), metric_name.to_string(), "total".to_string(), "".to_string()))
                         .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; } )
                         .or_insert( Statistic { per_second_value, last_timestamp, ..Default::default() });
@@ -765,9 +775,9 @@ pub fn print_yb_memory(
             let mem_tracker_log_cache = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_log_cache" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
             let mem_tracker_blockbasedtable = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_BlockBasedTable" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
             let mem_tracker_compressed_read_buffer_receive = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Compressed_Read_Buffer_Receive" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let mem_tracker_read_buffer_inbound_rpc_sending = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Read_Buffer_Inbound_RPC_Sending" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let mem_tracker_read_buffer_inbound_rpc_receive = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Read_Buffer_Inbound_RPC_Receive" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let mem_tracker_read_buffer_inbound_rpc_reading = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Read_Buffer_Inbound_RPC_Reading" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
+            let mem_tracker_read_buffer_inbound_rpc_sending = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Read_Buffer_Inbound_RPC_Sending" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default(); // doesn't exist when no RPC calls have been made
+            let mem_tracker_read_buffer_inbound_rpc_receive = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Read_Buffer_Inbound_RPC_Receive" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default(); // doesn't exist when no RPC calls have been made
+            let mem_tracker_read_buffer_inbound_rpc_reading = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Read_Buffer_Inbound_RPC_Reading" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default(); // doesn't exist when no RPC calls have been made
             let mem_tracker_read_buffer_outbound_rpc_queueing = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Read_Buffer_Outbound_RPC_Queueing" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
             let mem_tracker_read_buffer_outbound_rpc_receive = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Read_Buffer_Outbound_RPC_Receive" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap_or_default(); // master follower does not have this
             let mem_tracker_read_buffer_outbound_rpc_sending = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Read_Buffer_Outbound_RPC_Sending" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap_or_default(); // master follower does not have this
@@ -844,28 +854,33 @@ pub fn print_yb_io(
     {
         if statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "glog_info_messages" && metric_type == "server").count() > 0
         {
-            let info_messages = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "glog_info_messages" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-            let warning_messages = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "glog_warning_messages" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap_or_default();
-            let error_messages = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "glog_error_messages" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-            let log_bytes_logged: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "log_bytes_logged" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
-            let log_reader_bytes_read: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "log_reader_bytes_read" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
-            let rocksdb_flush_write_bytes: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "rocksdb_flush_write_bytes" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
-            let rocksdb_compact_read_bytes: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "rocksdb_compact_read_bytes" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
-            let rocksdb_compact_write_bytes: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "rocksdb_compact_write_bytes" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
-            let log_cache_disk_reads: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "log_cache_disk_reads" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
-            let log_sync_latency_count: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "log_sync_latency_count" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
-            let log_sync_latency_sum: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "log_sync_latency_sum" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
-            let log_append_latency_count: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "log_append_latency_count" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
-            let log_append_latency_sum: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "log_append_latency_sum" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
-            let rocksdb_write_raw_block_micros_count: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "rocksdb_write_raw_block_micros_count" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
-            let rocksdb_write_raw_block_micros_sum: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "rocksdb_write_raw_block_micros_sum" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
-            let rocksdb_sst_read_micros_count: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "rocksdb_sst_read_micros_count" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
-            let rocksdb_sst_read_micros_sum: f64 = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "rocksdb_sst_read_micros_sum" && metric_type == "tablet").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let info_messages = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "glog_info_messages" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+            let warning_messages = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "glog_warning_messages" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
+            let error_messages = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "glog_error_messages" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
+            let guaranteed_last_timestamp = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "glog_info_messages" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
+            // I see random use of metric_type table and tablet, so all I can do is not filter a specific one and take them both.
+            // I hope there is no double counting in that....
+            let log_bytes_logged: f64 = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "log_bytes_logged" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let log_reader_bytes_read: f64 = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "log_reader_bytes_read" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let rocksdb_flush_write_bytes: f64 = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "rocksdb_flush_write_bytes" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let intentsdb_rocksdb_flush_write_bytes: f64 = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "intentsdb_rocksdb_flush_write_bytes" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let rocksdb_compact_read_bytes: f64 = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "rocksdb_compact_read_bytes" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let intentsdb_rocksdb_compact_read_bytes: f64 = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "intentsdb_rocksdb_compact_read_bytes" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let rocksdb_compact_write_bytes: f64 = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "rocksdb_compact_write_bytes" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let intentsdb_rocksdb_compact_write_bytes: f64 = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "intentsdb_rocksdb_compact_write_bytes" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let log_cache_disk_reads: f64 = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "log_cache_disk_reads" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let log_sync_latency_count: f64 = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "log_sync_latency_count" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let log_sync_latency_sum: f64 = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "log_sync_latency_sum" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let log_append_latency_count: f64 = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "log_append_latency_count" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let log_append_latency_sum: f64 = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "log_append_latency_sum" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let rocksdb_write_raw_block_micros_count: f64 = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "rocksdb_write_raw_block_micros_count" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let rocksdb_write_raw_block_micros_sum: f64 = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "rocksdb_write_raw_block_micros_sum" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let rocksdb_sst_read_micros_count: f64 = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "rocksdb_sst_read_micros_count" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let rocksdb_sst_read_micros_sum: f64 = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "rocksdb_sst_read_micros_sum" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
 
-            let time = statistics.iter().filter(|((host, metric, metric_type, _), _)| host == hostname && metric == "glog_info_messages" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
-            println!("{:50} {:8} {:10.2} {:10.2}|{:10.2} {:10.2} {:10.2} {:10.2} {:10.2} {:10.2}|{:10.0}|{:10.0} {:10.0}|{:10.2} {:10.2} {:10.2} {:10.2}",
+            println!("{:50} {:8} {:10.2} {:10.2}|{:10.2} {:10.2} {:10.2} {:10.2} {:10.2} {:10.2}|{:10.2}|{:10.2} {:10.2}|{:10.2} {:10.2} {:10.2} {:10.2}",
                      hostname,
-                     time.format("%H:%M:%S"),
+                     guaranteed_last_timestamp.format("%H:%M:%S"),
                      info_messages,
                      warning_messages + error_messages,
                      log_bytes_logged / (1024.*1024.),
@@ -882,9 +897,9 @@ pub fn print_yb_io(
                      } else {
                          ( log_sync_latency_sum / log_sync_latency_count) / 1000.
                      },
-                     rocksdb_flush_write_bytes / (1024.*1024.),
-                     rocksdb_compact_read_bytes / (1024.*1024.),
-                     rocksdb_compact_write_bytes / (1024.*1024.),
+                     (rocksdb_flush_write_bytes + intentsdb_rocksdb_flush_write_bytes) / (1024.*1024.),
+                     (rocksdb_compact_read_bytes + intentsdb_rocksdb_compact_read_bytes) / (1024.*1024.),
+                     (rocksdb_compact_write_bytes + intentsdb_rocksdb_compact_write_bytes) / (1024.*1024.),
                      rocksdb_write_raw_block_micros_count,
                      if (( rocksdb_write_raw_block_micros_sum / rocksdb_write_raw_block_micros_count) / 1000.).is_nan() {
                          0.
@@ -1378,6 +1393,42 @@ pub fn print_sar_d_header()
     );
 }
 
+pub fn print_xfs_iops(
+    statistics: &BTreeMap<(String, String, String, String), Statistic>,
+)
+{
+    for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
+    {
+        if statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_xfs_read_calls_total").count() > 0
+        {
+            for current_device in statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_xfs_read_calls_total").map(|((_, _, device, _), _)| device)
+            {
+                let reads_completed = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_xfs_read_calls_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+                let writes_completed = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_xfs_write_calls_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+                let time = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_xfs_read_calls_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
+                println!("{:30} {:8} {:10} {:10.2} {:10.2}",
+                         hostname,
+                         time.format("%H:%M:%S"),
+                         current_device,
+                         reads_completed,
+                         writes_completed,
+                );
+            }
+        }
+    }
+}
+
+pub fn print_xfs_iops_header()
+{
+    println!("{:30} {:8} {:10} {:>10} {:>10}",
+             "hostname",
+             "time",
+             "dev",
+             "R_IOPS",
+             "W_IOPS",
+    );
+}
+
 pub fn print_iostat(
     statistics: &BTreeMap<(String, String, String, String), Statistic>,
 )
@@ -1447,10 +1498,10 @@ pub fn print_iostat_x(
                 read_percentage_merged = if read_percentage_merged.is_nan() { 0. } else { read_percentage_merged };
                 let mut write_percentage_merged = writes_merged / (writes_merged + writes_completed) * 100.;
                 write_percentage_merged = if write_percentage_merged.is_nan() { 0. } else { write_percentage_merged };
-                let mut read_average_wait = read_time / reads_completed;
-                read_average_wait = if read_average_wait.is_nan() { 0. } else { read_average_wait };
-                let mut write_average_wait = write_time / writes_completed;
-                write_average_wait = if write_average_wait.is_nan() { 0. } else { write_average_wait };
+                let mut read_average_time_ms = (read_time * 1000.) / reads_completed;
+                read_average_time_ms = if read_average_time_ms.is_nan() { 0. } else { read_average_time_ms };
+                let mut write_average_time_ms = (write_time * 1000.) / writes_completed;
+                write_average_time_ms = if write_average_time_ms.is_nan() { 0. } else { write_average_time_ms };
                 let mut read_average_request_size = read_bytes / reads_completed;
                 read_average_request_size = if read_average_request_size.is_nan() { 0. } else { read_average_request_size };
                 let mut write_average_request_size = write_bytes / writes_completed;
@@ -1463,17 +1514,17 @@ pub fn print_iostat_x(
                          current_device,
                          reads_completed,
                          writes_completed,
-                         read_bytes,
-                         write_bytes,
+                         read_bytes / (1024.*1024.),
+                         write_bytes / (1024.*1024.),
                          reads_merged,
                          writes_merged,
                          read_percentage_merged,
                          write_percentage_merged,
-                         read_average_wait,
-                         write_average_wait,
+                         read_average_time_ms,
+                         write_average_time_ms,
                          queue,
-                         read_average_request_size,
-                         write_average_request_size,
+                         read_average_request_size / (1024.*1024.),
+                         write_average_request_size / (1024.*1024.),
                 );
             }
         }
