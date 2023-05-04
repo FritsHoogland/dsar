@@ -1,0 +1,24 @@
+FROM ubuntu:jammy as builder
+
+# setup source directory
+WORKDIR /usr/src/dsar
+COPY . .
+
+# prepare operating system and install rust
+RUN apt update && apt upgrade -y
+RUN apt-get install -y curl gcc libssl-dev pkg-config
+RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
+ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin:/root/.cargo/bin
+
+# build executable
+RUN cargo build --release
+RUN strip -s target/release/dsar
+
+# generate rpm
+RUN cargo install cargo-deb
+RUN cargo deb
+
+# output file
+FROM scratch as export-stage
+COPY --from=builder /usr/src/dsar/target/debian/*deb /
+
