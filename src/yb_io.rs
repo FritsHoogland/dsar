@@ -13,6 +13,10 @@ pub fn process_statistic(
 {
     match sample.metric.as_str()
     {
+        // info messages are buffered and written when it's conveniently to do so.
+        // This may lead to info and other messages not being strict ordered in time.
+        // this also means info messages are not equivalent to an IO.
+        // warning and error messages are stored when they occur, so these do count as write IOs.
         "glog_info_messages" |
         "glog_warning_message" |
         "glog_error_messages" => {

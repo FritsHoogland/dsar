@@ -11,6 +11,13 @@ pub fn process_statistic(
     statistics: &mut BTreeMap<(String, String, String, String), Statistic>,
 )
 {
+    // This is the list of Yugabyte statistics that are stored for CPU:
+    // "cpu_stime" |
+    // "cpu_utime" |
+    // "voluntary_context_switches" |
+    // "involuntary_context_switches"
+    // voluntary and involuntary context switches are not printed currently.
+
     let Value::Untyped(value) = sample.value else { panic!("{} value enum type should be Untyped!", sample.metric)};
     let metric_type = sample.labels.iter().find(|(label, _)| *label == "metric_type").map(|(_, value)| value).unwrap();
     statistics

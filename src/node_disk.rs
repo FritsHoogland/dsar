@@ -5,6 +5,24 @@ use log::*;
 
 use crate::Statistic;
 
+#[derive(Debug)]
+pub struct NodeDiskDetails {
+    pub disk: String,
+    pub reads_completed_s: f64,
+    pub reads_bytes_s: f64,
+    pub reads_avg_latency_s: f64,
+    pub reads_merged_s: f64,
+    pub writes_completed_s: f64,
+    pub writes_bytes_s: f64,
+    pub writes_avg_latency_s: f64,
+    pub writes_merged_s: f64,
+    pub discards_completed_s: f64,
+    pub discards_sectors_s: f64,
+    pub discards_avg_latency: f64,
+    pub discards_merged_s: f64,
+    pub queue_size: f64,
+}
+
 pub fn process_statistic(
     sample: &Sample,
     hostname: &str,

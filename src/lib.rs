@@ -1,11 +1,14 @@
-use std::{collections, sync, time};
+use std::{sync, time};
 use prometheus_parse::Scrape;
-use collections::HashMap;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use sync::mpsc::channel;
 use time::Duration;
 use log::*;
 use chrono::{DateTime, Utc};
+use itertools::Itertools;
+
+use crate::node_cpu::NodeCpuDetails;
+use crate::node_disk::NodeDiskDetails;
 
 pub mod node_cpu;
 pub mod node_disk;
@@ -26,24 +29,120 @@ pub struct Statistic {
     pub last_timestamp: DateTime<Utc>,
 }
 
-/*
-#[derive(Debug)]
-pub struct CpuDetails {
-    hostname: String,
-    timestamp: DateTime<Utc>,
-    user: f64,
-    system: f64,
-    iowait: f64,
-    nice: f64,
-    irq: f64,
-    softirq: f64,
-    steal: f64,
-    idle: f64,
-    scheduler_runtime: f64,
-    scheduler_wait: f64,
+#[derive(Debug, Default)]
+pub struct HistoricalData {
+    pub cpu_details: HashMap<(String, DateTime<Utc>), NodeCpuDetails>,
+    pub disk_details: HashMap<(String, DateTime<Utc>), NodeDiskDetails>,
 }
 
- */
+impl HistoricalData {
+    pub fn new() -> Self {
+        Default::default()
+    }
+    pub fn add(
+        &mut self,
+        statistics: &BTreeMap<(String, String, String, String), Statistic>,
+    )
+    {
+        self.add_node_cpu_statistics(statistics);
+        self.add_node_disk_statistics(statistics);
+    }
+    pub fn add_node_cpu_statistics(
+        &mut self,
+        statistics: &BTreeMap<(String, String, String, String), Statistic>,
+    )
+    {
+        for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
+        {
+            if statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_cpu_seconds_total").count() > 0
+            {
+                let timestamp = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "user" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
+                let user = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "user" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let nice = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "nice" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let system = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "system" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let iowait = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "iowait" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let steal = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "steal" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let irq = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "irq" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let softirq = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "softirq" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let guest_user = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_guest_seconds_total" && mode == "user" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let guest_nice = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_guest_seconds_total" && mode == "nice" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let idle = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "idle" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let schedstat_runtime = statistics.iter().find(|((host, metric, cpu, _), _)| host == hostname && metric == "node_schedstat_running_seconds_total" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let schedstat_wait = statistics.iter().find(|((host, metric, cpu, _), _)| host == hostname && metric == "node_schedstat_waiting_seconds_total" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                self.cpu_details.entry((hostname.to_string(), timestamp)).or_insert(
+                    NodeCpuDetails {
+                        user,
+                        nice,
+                        system,
+                        iowait,
+                        steal,
+                        irq,
+                        softirq,
+                        guest_user,
+                        guest_nice,
+                        idle,
+                        schedstat_runtime,
+                        schedstat_wait,
+                    }
+                );
+            }
+        }
+    }
+    pub fn add_node_disk_statistics(
+        &mut self,
+        statistics: &BTreeMap<(String, String, String, String), Statistic>,
+    )
+    {
+        for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
+        {
+            if statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_disk_read_bytes_total").count() > 0
+            {
+                for current_device in statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_disk_read_bytes_total").map(|((_, _, device, _), _)| device)
+                {
+                    let timestamp = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+                    let reads_completed_s = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_merged_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+                    let reads_bytes_s = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_read_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+                    let reads_time_s = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_read_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+                    let reads_avg_latency_s = if (reads_time_s / reads_completed_s).is_nan() { 0. } else { reads_time_s / reads_completed_s };
+                    let reads_merged_s = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_merged_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+
+                    let writes_completed_s = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_writes_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+                    let writes_bytes_s = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_written_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+                    let writes_time_s = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_write_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+                    let writes_avg_latency_s = if (writes_time_s / writes_completed_s).is_nan() { 0. } else { writes_time_s / writes_completed_s };
+                    let writes_merged_s = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_writes_merged_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+
+                    let discards_completed_s = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_discards_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+                    let discards_sectors_s = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_discarded_sectors_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+                    let discards_merged_s = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_discards_merged_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+                    let discards_time_s = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_discard_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+                    let discards_avg_latency = if (discards_time_s / discards_completed_s).is_nan() { 0. } else { discards_time_s / discards_completed_s };
+
+                    let queue_size = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_write_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+
+                    self.disk_details.entry((hostname.to_string(), timestamp)).or_insert(
+                        NodeDiskDetails {
+                            disk: current_device.to_string(),
+                            reads_completed_s,
+                            reads_bytes_s,
+                            reads_avg_latency_s,
+                            reads_merged_s,
+                            writes_completed_s,
+                            writes_bytes_s,
+                            writes_avg_latency_s,
+                            writes_merged_s,
+                            discards_completed_s,
+                            discards_sectors_s,
+                            discards_avg_latency,
+                            discards_merged_s,
+                            queue_size,
+                        }
+                    );
+                }
+            }
+        }
+    }
+}
 
 pub async fn read_node_exporter_into_map(
     hosts: &Vec<&str>,

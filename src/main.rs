@@ -4,8 +4,10 @@ use time::Duration;
 use anyhow::Result;
 //use log::*;
 use std::collections::BTreeMap;
+//use ctrlc;
+use std::{process, sync::{Arc, Mutex}};
 
-use dsar::{read_node_exporter_into_map, process_statistics, Statistic};
+use dsar::{read_node_exporter_into_map, process_statistics, Statistic, HistoricalData};
 use dsar::node_cpu::{print_sar_u, print_sar_u_header};
 use dsar::node_disk::{print_sar_d, print_sar_d_header, print_iostat, print_iostat_header, print_iostat_x, print_iostat_x_header, print_xfs_iops, print_xfs_iops_header};
 use dsar::node_network::{print_sar_n_dev, print_sar_n_dev_header, print_sar_n_edev, print_sar_n_edev_header, print_sar_n_sock, print_sar_n_sock_header, print_sar_n_sock6, print_sar_n_sock6_header, print_sar_n_soft, print_sar_n_soft_header};
@@ -86,7 +88,15 @@ async fn main() -> Result<()>
 
     let mut interval = time::interval(Duration::from_secs(args.interval));
     let mut statistics: BTreeMap<(String, String, String, String), Statistic> = Default::default();
+    //let mut historical_data = HistoricalData::new();
+    let historical_data : Arc<Mutex<HistoricalData>> = Arc::new(Mutex::new(HistoricalData::new()));
+    let historical_data_ctrlc = historical_data.clone();
+    let historical_data_loop = historical_data.clone();
 
+    ctrlc::set_handler(move || {
+        println!("{:#?}", historical_data_ctrlc.lock().unwrap());
+        process::exit(0);
+    }).unwrap();
 
     let mut print_counter: u64 = 0;
     loop
@@ -94,6 +104,8 @@ async fn main() -> Result<()>
         interval.tick().await;
         let node_exporter_values = read_node_exporter_into_map(&args.hosts.split(',').collect(), &args.ports.split(',').collect(), args.parallel).await;
         process_statistics(&node_exporter_values, &mut statistics).await;
+        historical_data_loop.lock().unwrap().add(&statistics);
+
         if print_counter == 0 || print_counter % args.header_print == 0
         {
             match args.output {
@@ -146,5 +158,6 @@ async fn main() -> Result<()>
             OutputOptions::XfsIops => print_xfs_iops(&statistics),
         }
         print_counter += 1;
+
     }
 }

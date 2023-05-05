@@ -2,8 +2,25 @@ use std::collections::BTreeMap;
 use prometheus_parse::{Value, Sample};
 use itertools::Itertools;
 use log::*;
+//use chrono::{DateTime, Utc};
 
 use crate::Statistic;
+
+#[derive(Debug)]
+pub struct NodeCpuDetails {
+    pub user: f64,
+    pub nice: f64,
+    pub system: f64,
+    pub iowait: f64,
+    pub steal: f64,
+    pub irq: f64,
+    pub softirq: f64,
+    pub guest_user: f64,
+    pub guest_nice: f64,
+    pub idle: f64,
+    pub schedstat_runtime: f64,
+    pub schedstat_wait: f64,
+}
 
 pub fn process_statistic(
     sample: &Sample,
