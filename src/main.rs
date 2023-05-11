@@ -1,22 +1,24 @@
 use clap::{Parser, ValueEnum};
 use tokio::time;
 use time::Duration;
-use anyhow::Result;
+//use anyhow::Result;
 //use log::*;
 use std::collections::BTreeMap;
 //use ctrlc;
 use std::{process, sync::{Arc, Mutex}};
+//use std::sync::atomic::{AtomicBool, Ordering};
+//use std::thread::sleep;
 
 use dsar::{read_node_exporter_into_map, process_statistics, Statistic, HistoricalData};
 use dsar::node_cpu::{print_sar_u, print_sar_u_header, create_cpu_plots};
 use dsar::node_disk::{print_sar_d, print_sar_d_header, print_iostat, print_iostat_header, print_iostat_x, print_iostat_x_header, print_xfs_iops, print_xfs_iops_header, create_disk_plots};
 use dsar::node_network::{print_sar_n_dev, print_sar_n_dev_header, print_sar_n_edev, print_sar_n_edev_header, print_sar_n_sock, print_sar_n_sock_header, print_sar_n_sock6, print_sar_n_sock6_header, print_sar_n_soft, print_sar_n_soft_header};
-use dsar::node_memory::{print_sar_r, print_sar_r_header, print_sar_s, print_sar_s_header};
+use dsar::node_memory::{create_memory_plots, print_sar_r, print_sar_r_header, print_sar_s, print_sar_s_header};
 use dsar::node_vmstat::{print_sar_b, print_sar_b_header, print_sar_w, print_sar_w_header};
 use dsar::node_misc::{print_sar_q, print_sar_q_header};
 use dsar::yb_cpu::{print_yb_cpu, print_yb_cpu_header};
 use dsar::yb_network::{print_yb_network, print_yb_network_header};
-use dsar::yb_memory::{print_yb_memory, print_yb_memory_header};
+use dsar::yb_memory::{print_yb_memory, print_yb_memory_header, create_yb_memory_plots};
 use dsar::yb_io::{print_yb_io, print_yb_io_header};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
@@ -54,6 +56,7 @@ enum OutputOptions
     YbIo,
     CpuAll,
     XfsIops,
+    MemRelevant,
 }
 
 #[derive(Debug, Parser)]
@@ -81,22 +84,22 @@ pub struct Opts
 }
 
 #[tokio::main]
-async fn main() -> Result<()> 
+async fn main()
 {
     env_logger::init();
     let args = Opts::parse();
 
     let mut interval = time::interval(Duration::from_secs(args.interval));
     let mut statistics: BTreeMap<(String, String, String, String), Statistic> = Default::default();
-    //let mut historical_data = HistoricalData::new();
     let historical_data : Arc<Mutex<HistoricalData>> = Arc::new(Mutex::new(HistoricalData::new()));
     let historical_data_ctrlc = historical_data.clone();
     let historical_data_loop = historical_data.clone();
 
     ctrlc::set_handler(move || {
-        //println!("{:#?}", historical_data_ctrlc.lock().unwrap());
         create_cpu_plots(&historical_data_ctrlc);
         create_disk_plots(&historical_data_ctrlc);
+        create_memory_plots(&historical_data_ctrlc);
+        create_yb_memory_plots(&historical_data_ctrlc);
         process::exit(0);
     }).unwrap();
 
@@ -104,6 +107,7 @@ async fn main() -> Result<()>
     loop
     {
         interval.tick().await;
+
         let node_exporter_values = read_node_exporter_into_map(&args.hosts.split(',').collect(), &args.ports.split(',').collect(), args.parallel).await;
         process_statistics(&node_exporter_values, &mut statistics).await;
         historical_data_loop.lock().unwrap().add(&statistics);
@@ -133,6 +137,7 @@ async fn main() -> Result<()>
                 OutputOptions::YbIo => print_yb_io_header(),
                 OutputOptions::CpuAll => print_sar_u_header("extended"),
                 OutputOptions::XfsIops => print_xfs_iops_header(),
+                OutputOptions::MemRelevant => print_sar_r_header("relevant"),
             }
         };
         match args.output {
@@ -158,6 +163,7 @@ async fn main() -> Result<()>
             OutputOptions::YbIo => print_yb_io(&statistics),
             OutputOptions::CpuAll => print_sar_u("extended", &statistics),
             OutputOptions::XfsIops => print_xfs_iops(&statistics),
+            OutputOptions::MemRelevant => print_sar_r("relevant", &statistics),
         }
         print_counter += 1;
 

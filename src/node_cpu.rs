@@ -121,7 +121,7 @@ pub fn print_sar_u(
 {
     for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
     {
-        if statistics.iter().find(|((host, metric, _, _), row)| host == hostname && metric == "node_cpu_seconds_total" && row.first_value != true).is_some()
+        if statistics.iter().any(|((host, metric, _, _), row)| host == hostname && metric == "node_cpu_seconds_total" && !row.first_value)
         {
             let user_time = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "user" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
             let system_time = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "system" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
@@ -298,7 +298,7 @@ pub fn create_cpu_plots(
             .unwrap();
         contextarea.configure_mesh()
             .x_labels(4)
-            .x_label_formatter(&|x| x.to_rfc3339().to_string())
+            .x_label_formatter(&|x| x.to_rfc3339())
             .y_desc("CPU per second")
             .label_style(("monospace", 17))
             .draw()

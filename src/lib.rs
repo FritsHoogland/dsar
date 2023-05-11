@@ -9,6 +9,8 @@ use itertools::Itertools;
 
 use crate::node_cpu::NodeCpuDetails;
 use crate::node_disk::NodeDiskDetails;
+use crate::node_memory::NodeMemoryDetails;
+use crate::yb_memory::YbMemoryDetails;
 
 pub mod node_cpu;
 pub mod node_disk;
@@ -34,6 +36,8 @@ pub struct Statistic {
 pub struct HistoricalData {
     pub cpu_details: BTreeMap<(String, DateTime<Utc>), NodeCpuDetails>,
     pub disk_details: BTreeMap<(String, DateTime<Utc>, String), NodeDiskDetails>,
+    pub memory_details: BTreeMap<(String, DateTime<Utc>), NodeMemoryDetails>,
+    pub yb_memory_details: BTreeMap<(String, DateTime<Utc>), YbMemoryDetails>
 }
 
 impl HistoricalData {
@@ -47,6 +51,8 @@ impl HistoricalData {
     {
         self.add_node_cpu_statistics(statistics);
         self.add_node_disk_statistics(statistics);
+        self.add_node_memory_statistics(statistics);
+        self.add_yb_memory_statistics(statistics);
     }
     pub fn add_node_cpu_statistics(
         &mut self,
@@ -55,7 +61,7 @@ impl HistoricalData {
     {
         for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
         {
-            if statistics.iter().find(|((host, metric, _, _), row)| host == hostname && metric == "node_cpu_seconds_total" && row.first_value != true).is_some()
+            if statistics.iter().any(|((host, metric, _, _), row)| host == hostname && metric == "node_cpu_seconds_total" && !row.first_value )
             {
                 let timestamp = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "user" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
                 let user = statistics.iter().find(|((host, metric, cpu, mode), _)| host == hostname && metric == "node_cpu_seconds_total" && mode == "user" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
@@ -96,7 +102,7 @@ impl HistoricalData {
     {
         for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
         {
-            if statistics.iter().find(|((host, metric, _, _), row)| host == hostname && metric == "node_disk_read_bytes_total" && row.first_value != true).is_some()
+            if statistics.iter().any(|((host, metric, _, _), row)| host == hostname && metric == "node_disk_read_bytes_total" && !row.first_value )
             {
                 for current_device in statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_disk_read_bytes_total").map(|((_, _, device, _), _)| device)
                 {
@@ -139,6 +145,176 @@ impl HistoricalData {
                         }
                     );
                 }
+            }
+        }
+    }
+    pub fn add_node_memory_statistics(
+        &mut self,
+        statistics: &BTreeMap<(String, String, String, String), Statistic>,
+    )
+    {
+        for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
+        {
+            if statistics.iter().any(|((host, metric, _, _), row)| host == hostname && metric == "node_memory_MemFree_bytes" && !row.first_value )
+            {
+                let active_anon = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Active_anon_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let active = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Active_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let active_file = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Active_file_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let anonhugepages = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_AnonHugePages_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let anonpages = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_AnonPages_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let bounce = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Bounce_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let buffers = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Buffers_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let cached = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Cached_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let commitlimit = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_CommitLimit_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let committed_as = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Committed_AS_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let directmap2m = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_DirectMap2M_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let directmap4k = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_DirectMap4k_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let dirty = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Dirty_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let filehugepages = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_FileHugePages_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let filepmdmapped = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_FilePmdMapped_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let hardwarecorrupted = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_HardwareCorrupted_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let hugepages_free = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_HugePages_Free").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let hugepages_rsvd = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_HugePages_Rsvd").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let hugepages_surp = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_HugePages_Surp").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let hugepages_total = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_HugePages_Total").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let hugepagesize = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Hugepagesize_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let hugetlb = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Hugetlb_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let inactive_anon = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Inactive_anon_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let inactive = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Inactive_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let inactive_file = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Inactive_file_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let kreclaimable = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_KReclaimable_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let kernelstack = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_KernelStack_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let mapped = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Mapped_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let memavailable = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_MemAvailable_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let memfree = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_MemFree_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let memtotal = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_MemTotal_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let mlocked = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Mlocked_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let nfs_unstable = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_NFS_Unstable_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let pagetables = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_PageTables_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let percpu = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Percpu_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let sreclaimable = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SReclaimable_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let sunreclaim = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SUnreclaim_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let shmemhugepages = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_ShmemHugePages_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let shmempmdmapped = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_ShmemPmdMapped_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let shmem = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Shmem_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let slab = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Slab_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let swapcached = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapCached_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let swapfree = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapFree_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let swaptotal = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapTotal_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let unevictable = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Unevictable_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let vmallocchunk = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_VmallocChunk_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let vmalloctotal = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_VmallocTotal_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let vmallocused = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_VmallocUsed_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let writebacktmp = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_WritebackTmp_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let writeback = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Writeback_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let timestamp = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Active_anon_bytes").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
+                self.memory_details.entry((hostname.to_string(), timestamp)).or_insert(
+                    NodeMemoryDetails{
+                        active_anon,
+                        active,
+                        active_file,
+                        anonhugepages,
+                        anonpages,
+                        bounce,
+                        buffers,
+                        cached,
+                        commitlimit,
+                        committed_as,
+                        directmap2m,
+                        directmap4k,
+                        dirty,
+                        filehugepages,
+                        filepmdmapped,
+                        hardwarecorrupted,
+                        hugepages_free,
+                        hugepages_rsvd,
+                        hugepages_surp,
+                        hugepages_total,
+                        hugepagesize,
+                        hugetlb,
+                        inactive_anon,
+                        inactive,
+                        inactive_file,
+                        kreclaimable,
+                        kernelstack,
+                        mapped,
+                        memavailable,
+                        memfree,
+                        memtotal,
+                        mlocked,
+                        nfs_unstable,
+                        pagetables,
+                        percpu,
+                        sreclaimable,
+                        sunreclaim,
+                        shmemhugepages,
+                        shmempmdmapped,
+                        shmem,
+                        slab,
+                        swapcached,
+                        swapfree,
+                        swaptotal,
+                        unevictable,
+                        vmallocchunk,
+                        vmalloctotal,
+                        vmallocused,
+                        writebacktmp,
+                        writeback,
+                    }
+                );
+            }
+        }
+    }
+    pub fn add_yb_memory_statistics(
+        &mut self,
+        statistics: &BTreeMap<(String, String, String, String), Statistic>,
+    )
+    {
+        for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
+        {
+            if statistics.iter().any(|((host, metric, metric_type, _), row)| host == hostname && metric == "generic_heap_size" && metric_type == "server" && !row.first_value )
+            {
+                let generic_heap = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "generic_heap_size" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let generic_allocated = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "generic_current_allocated_bytes" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let tcmalloc_pageheap_free = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "tcmalloc_pageheap_free_bytes" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let tcmalloc_max_total_thread_cache = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "tcmalloc_max_total_thread_cache_bytes" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let tcmalloc_current_total_thread_cache = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "tcmalloc_current_total_thread_cache_bytes" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let tcmalloc_pageheap_unmapped = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "tcmalloc_pageheap_unmapped_bytes" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let mem_tracker = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let mem_tracker_call = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Call" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let mem_tracker_read_buffer = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Read_Buffer" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let mem_tracker_compressed_read_buffer = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Compressed_Read_Buffer" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let mem_tracker_tablets = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Tablets" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default(); // master does not have tablets
+                let mem_tracker_log_cache = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_log_cache" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let mem_tracker_blockbasedtable = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_BlockBasedTable" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let mem_tracker_compressed_read_buffer_receive = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Compressed_Read_Buffer_Receive" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let mem_tracker_read_buffer_inbound_rpc_sending = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Read_Buffer_Inbound_RPC_Sending" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default(); // doesn't exist when no RPC calls have been made
+                let mem_tracker_read_buffer_inbound_rpc_receive = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Read_Buffer_Inbound_RPC_Receive" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default(); // doesn't exist when no RPC calls have been made
+                let mem_tracker_read_buffer_inbound_rpc_reading = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Read_Buffer_Inbound_RPC_Reading" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default(); // doesn't exist when no RPC calls have been made
+                let mem_tracker_read_buffer_outbound_rpc_queueing = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Read_Buffer_Outbound_RPC_Queueing" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let mem_tracker_read_buffer_outbound_rpc_receive = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Read_Buffer_Outbound_RPC_Receive" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default(); // master follower does not have this
+                let mem_tracker_read_buffer_outbound_rpc_sending = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Read_Buffer_Outbound_RPC_Sending" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default(); // master follower does not have this
+                let mem_tracker_read_buffer_outbound_rpc_reading = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "mem_tracker_Read_Buffer_Outbound_RPC_Reading" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default(); // master follower does not have this
+                let mem_tracker_independent_allocs = mem_tracker_compressed_read_buffer_receive + mem_tracker_read_buffer_inbound_rpc_sending + mem_tracker_read_buffer_inbound_rpc_receive + mem_tracker_read_buffer_inbound_rpc_reading + mem_tracker_read_buffer_outbound_rpc_queueing + mem_tracker_read_buffer_outbound_rpc_receive + mem_tracker_read_buffer_outbound_rpc_sending + mem_tracker_read_buffer_outbound_rpc_reading;
+                let timestamp = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "generic_heap_size" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
+                self.yb_memory_details.entry((hostname.to_string(), timestamp)).or_insert(
+                    YbMemoryDetails {
+                        generic_heap,
+                        generic_allocated,
+                        tcmalloc_pageheap_free,
+                        tcmalloc_max_total_thread_cache,
+                        tcmalloc_current_total_thread_cache,
+                        tcmalloc_pageheap_unmapped,
+                        mem_tracker,
+                        mem_tracker_call,
+                        mem_tracker_read_buffer,
+                        mem_tracker_compressed_read_buffer,
+                        mem_tracker_tablets,
+                        mem_tracker_log_cache,
+                        mem_tracker_blockbasedtable,
+                        mem_tracker_independent_allocs,
+                    }
+                );
             }
         }
     }

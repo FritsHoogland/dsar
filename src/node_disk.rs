@@ -95,27 +95,27 @@ pub fn print_sar_d(
 {
     for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
     {
-        if statistics.iter().find(|((host, metric, _, _), row)| host == hostname && metric == "node_disk_read_bytes_total" && row.first_value != true).is_some()
+        if statistics.iter().any(|((host, metric, _, _), row)| host == hostname && metric == "node_disk_read_bytes_total" && !row.first_value)
         {
             for current_device in statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_disk_read_bytes_total").map(|((_, _, device, _), _)| device)
             {
-                let reads_completed = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-                let writes_completed = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_writes_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+                let reads_completed = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let writes_completed = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_writes_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
                 let tps = reads_completed + writes_completed;
-                let read_bytes = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_read_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-                let write_bytes = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_written_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+                let read_bytes = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_read_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let write_bytes = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_written_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
                 let mut average_read_request_size = read_bytes / reads_completed;
                 average_read_request_size = if average_read_request_size.is_nan() { 0. } else { average_read_request_size };
                 let mut average_write_request_size = write_bytes / writes_completed;
                 average_write_request_size = if average_write_request_size.is_nan() { 0. } else { average_write_request_size };
-                let queue_size = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_io_time_weighted_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-                let read_time = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_read_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-                let write_time = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_write_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+                let queue_size = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_io_time_weighted_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let read_time = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_read_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let write_time = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_write_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
                 let mut average_read_request_time_ms = (read_time * 1000.) / reads_completed;
                 average_read_request_time_ms = if average_read_request_time_ms.is_nan() { 0. } else { average_read_request_time_ms };
                 let mut average_write_request_time_ms = (write_time * 1000.) / writes_completed;
                 average_write_request_time_ms = if average_write_request_time_ms.is_nan() { 0. } else { average_write_request_time_ms };
-                let time = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+                let time = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
                 println!("{:30} {:8} {:10} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}",
                          hostname,
                          time.format("%H:%M:%S"),
@@ -153,12 +153,12 @@ pub fn print_xfs_iops(
 {
     for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
     {
-        if statistics.iter().find(|((host, metric, _, _), row)| host == hostname && metric == "node_xfs_read_calls_total" && row.first_value != true).is_some()
+        if statistics.iter().any(|((host, metric, _, _), row)| host == hostname && metric == "node_xfs_read_calls_total" && !row.first_value )
         {
             for current_device in statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_xfs_read_calls_total").map(|((_, _, device, _), _)| device)
             {
-                let reads_completed = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_xfs_read_calls_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-                let writes_completed = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_xfs_write_calls_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+                let reads_completed = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_xfs_read_calls_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let writes_completed = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_xfs_write_calls_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
                 let time = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_xfs_read_calls_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
                 println!("{:30} {:8} {:10} {:10.2} {:10.2}",
                          hostname,
@@ -189,23 +189,24 @@ pub fn print_iostat(
 {
     for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
     {
-        if statistics.iter().find(|((host, metric, _, _), row)| host == hostname && metric == "node_disk_read_bytes_total" && row.first_value != true).is_some()
+        if statistics.iter().any(|((host, metric, _, _), row)| host == hostname && metric == "node_disk_read_bytes_total" && !row.first_value )
         {
             for current_device in statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_disk_read_bytes_total").map(|((_, _, device, _), _)| device)
             {
-                let reads_completed = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-                let writes_completed = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_writes_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+                let reads_completed = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let writes_completed = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_writes_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
                 let tps = reads_completed + writes_completed;
-                let read_bytes = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_read_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-                let write_bytes = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_written_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-                let read_total = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_read_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.delta_value).next().unwrap();
-                let write_total = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_written_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.delta_value).next().unwrap();
-                let time = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+                let read_bytes = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_read_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let write_bytes = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_written_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let read_total = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_read_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.delta_value).unwrap();
+                let write_total = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_written_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.delta_value).unwrap();
+                let time = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
                 println!("{:30} {:8} {:10} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}",
                          hostname,
                          time.format("%H:%M:%S"),
                          current_device,
-                         tps, read_bytes / (1024. * 1024.),
+                         tps,
+                         read_bytes / (1024. * 1024.),
                          write_bytes / (1024. * 1024.),
                          read_total / (1024. * 1024.),
                          write_total / (1024. * 1024.),
@@ -235,19 +236,19 @@ pub fn print_iostat_x(
 {
     for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
     {
-        if statistics.iter().find(|((host, metric, _, _), row)| host == hostname && metric == "node_disk_read_bytes_total" && row.first_value).is_some()
+        if statistics.iter().any(|((host, metric, _, _), row)| host == hostname && metric == "node_disk_read_bytes_total" && !row.first_value )
         {
             for current_device in statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_disk_read_bytes_total").map(|((_, _, device, _), _)| device)
             {
-                let reads_completed = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-                let writes_completed = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_writes_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-                let read_bytes = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_read_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-                let write_bytes = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_written_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-                let reads_merged = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_merged_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-                let writes_merged = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_writes_merged_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-                let read_time = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_read_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-                let write_time = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_write_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
-                let queue = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_write_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).next().unwrap();
+                let reads_completed = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let writes_completed = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_writes_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let read_bytes = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_read_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let write_bytes = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_written_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let reads_merged = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_merged_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let writes_merged = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_writes_merged_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let read_time = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_read_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let write_time = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_write_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let queue = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_write_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
                 let mut read_percentage_merged = reads_merged / (reads_merged + reads_completed) * 100.;
                 read_percentage_merged = if read_percentage_merged.is_nan() { 0. } else { read_percentage_merged };
                 let mut write_percentage_merged = writes_merged / (writes_merged + writes_completed) * 100.;
@@ -260,7 +261,7 @@ pub fn print_iostat_x(
                 read_average_request_size = if read_average_request_size.is_nan() { 0. } else { read_average_request_size };
                 let mut write_average_request_size = write_bytes / writes_completed;
                 write_average_request_size = if write_average_request_size.is_nan() { 0. } else { write_average_request_size };
-                let time = statistics.iter().filter(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+                let time = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
 
                 println!("{:30} {:8} {:10} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2} {:9.2}",
                          hostname,
@@ -316,6 +317,11 @@ pub fn create_disk_plots(
     {
         for current_device in unlocked_historical_data.disk_details.iter().filter(|((hostname, _, _), _)| hostname == filter_hostname).map(|((_, _, device), _)| device).unique()
         {
+            let filename = format!("{}_disk_{}.png", filter_hostname, current_device);
+            let root = BitMapBackend::new(&filename, (1280, 2100)).into_drawing_area();
+            let multiroot = root.split_evenly((3, 1));
+
+
             // MBPS plot
             // set the plot specifics
             let start_time = unlocked_historical_data.disk_details
@@ -330,18 +336,17 @@ pub fn create_disk_plots(
                 .map(|(_, timestamp, _)| timestamp)
                 .max()
                 .unwrap();
+
             let low_value_mbps: f64 = 0.0;
             let high_value_mbps = unlocked_historical_data.disk_details.iter()
                 .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
                 .map(|((_, _, _), row)| (row.reads_bytes_s + row.writes_bytes_s) / (1024.*1024.))
                 .max_by(|a, b| a.partial_cmp(b).unwrap())
                 .unwrap();
-            let filename = format!("{}_disk_mbps_{}.png", filter_hostname, current_device);
 
             // create the plot
-            let root = BitMapBackend::new(&filename, (1280, 900)).into_drawing_area();
-            root.fill(&WHITE).unwrap();
-            let mut contextarea = ChartBuilder::on(&root)
+            multiroot[0].fill(&WHITE).unwrap();
+            let mut contextarea = ChartBuilder::on(&multiroot[0])
                 .set_label_area_size(LabelAreaPosition::Left, 60)
                 .set_label_area_size(LabelAreaPosition::Bottom, 50)
                 .set_label_area_size(LabelAreaPosition::Right, 60)
@@ -350,7 +355,7 @@ pub fn create_disk_plots(
                 .unwrap();
             contextarea.configure_mesh()
                 .x_labels(4)
-                .x_label_formatter(&|x| x.to_rfc3339().to_string())
+                .x_label_formatter(&|x| x.to_rfc3339())
                 .y_desc("MBPS")
                 .label_style(("monospace", 17))
                 .draw()
@@ -391,179 +396,180 @@ pub fn create_disk_plots(
                 .unwrap()
                 .label(format!("{:25} min: {:10.2}, max: {:10.2}", "Write MBPS", min_writes_mbps, max_writes_mbps))
                 .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(2).filled()));
-            /*
-            let min_scheduler_runtime = unlocked_historical_data.cpu_details.iter()
-                .filter(|((hostname, _), _)| hostname == filter_hostname)
-                .map(|((_, _), row)| row.schedstat_runtime)
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
+            contextarea.configure_series_labels()
+                .border_style(BLACK)
+                .background_style(WHITE.mix(0.7))
+                .label_font(("monospace", 15))
+                .position(UpperLeft)
+                .draw()
                 .unwrap();
-            let max_scheduler_runtime = unlocked_historical_data.cpu_details.iter()
-                .filter(|((hostname, _), _)| hostname == filter_hostname)
-                .map(|((_, _), row)| row.schedstat_runtime)
+
+            // IOPS plot
+            // set the plot specifics
+            let low_value_iops: f64 = 0.0;
+            let high_value_iops = unlocked_historical_data.disk_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.reads_completed_s + row.writes_completed_s)
                 .max_by(|a, b| a.partial_cmp(b).unwrap())
                 .unwrap();
-            contextarea.draw_series(AreaSeries::new(unlocked_historical_data.cpu_details.iter()
-                                                        .filter(|((hostname, _), _)| hostname == filter_hostname)
-                                                        .map(|((_, timestamp), row)| (*timestamp, row.schedstat_runtime)),
+
+            // create the plot
+            multiroot[1].fill(&WHITE).unwrap();
+            let mut contextarea = ChartBuilder::on(&multiroot[1])
+                .set_label_area_size(LabelAreaPosition::Left, 60)
+                .set_label_area_size(LabelAreaPosition::Bottom, 50)
+                .set_label_area_size(LabelAreaPosition::Right, 60)
+                .caption(format!("Disk IOPS: {} {}", filter_hostname, current_device), ("monospace", 30))
+                .build_cartesian_2d(*start_time..*end_time, low_value_iops..high_value_iops)
+                .unwrap();
+            contextarea.configure_mesh()
+                .x_labels(4)
+                .x_label_formatter(&|x| x.to_rfc3339())
+                .y_desc("IOPS")
+                .label_style(("monospace", 17))
+                .draw()
+                .unwrap();
+            let min_reads_iops = unlocked_historical_data.disk_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.reads_completed_s )
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let max_reads_iops = unlocked_historical_data.disk_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.reads_completed_s )
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            contextarea.draw_series(AreaSeries::new(unlocked_historical_data.disk_details.iter()
+                                                        .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                                                        .map(|((_, timestamp, _), row)| (*timestamp, row.reads_completed_s + row.writes_completed_s)),
+                                                    0.0, Palette99::pick(1))
+            )
+                .unwrap()
+                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "Read IOPS", min_reads_iops, max_reads_iops))
+                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(1).filled()));
+            let min_writes_iops = unlocked_historical_data.disk_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.writes_completed_s )
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let max_writes_iops = unlocked_historical_data.disk_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.writes_completed_s )
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            contextarea.draw_series(AreaSeries::new(unlocked_historical_data.disk_details.iter()
+                                                        .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                                                        .map(|((_, timestamp, _), row)| (*timestamp, row.writes_completed_s )),
                                                     0.0, Palette99::pick(2))
             )
                 .unwrap()
-                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "scheduler runtime", min_scheduler_runtime, max_scheduler_runtime))
+                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "Write IOPS", min_writes_iops, max_writes_iops))
                 .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(2).filled()));
-            let min_guest_nice = unlocked_historical_data.cpu_details.iter()
-                .filter(|((hostname, _), _)| hostname == filter_hostname)
-                .map(|((_, _), row)| row.guest_nice)
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
+            contextarea.configure_series_labels()
+                .border_style(BLACK)
+                .background_style(WHITE.mix(0.7))
+                .label_font(("monospace", 15))
+                .position(UpperLeft)
+                .draw()
                 .unwrap();
-            let max_guest_nice = unlocked_historical_data.cpu_details.iter()
-                .filter(|((hostname, _), _)| hostname == filter_hostname)
-                .map(|((_, _), row)| row.guest_nice)
-                .max_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
-            contextarea.draw_series(AreaSeries::new(unlocked_historical_data.cpu_details.iter()
-                                                        .filter(|((hostname, _), _)| hostname == filter_hostname)
-                                                        .map(|((_, timestamp), row)| (*timestamp, row.guest_nice + row.guest_user + row.softirq + row.irq + row.steal + row.iowait + row.system + row.nice + row.user)),
-                                                    0.0, Palette99::pick(3))
-            )
-                .unwrap()
-                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "guest nice", min_guest_nice, max_guest_nice))
-                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(3).filled()));
-            let min_guest_user = unlocked_historical_data.cpu_details.iter()
-                .filter(|((hostname, _), _)| hostname == filter_hostname)
-                .map(|((_, _), row)| row.guest_user)
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
-            let max_guest_user = unlocked_historical_data.cpu_details.iter()
-                .filter(|((hostname, _), _)| hostname == filter_hostname)
-                .map(|((_, _), row)| row.guest_user)
-                .max_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
-            contextarea.draw_series(AreaSeries::new(unlocked_historical_data.cpu_details.iter()
-                                                        .filter(|((hostname, _), _)| hostname == filter_hostname)
-                                                        .map(|((_, timestamp), row)| (*timestamp, row.guest_user + row.softirq + row.irq + row.steal + row.iowait + row.system + row.nice + row.user)),
-                                                    0.0, Palette99::pick(4))
-            )
-                .unwrap()
-                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "guest user", min_guest_user, max_guest_user))
-                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(4).filled()));
-            let min_softirq = unlocked_historical_data.cpu_details.iter()
-                .filter(|((hostname, _), _)| hostname == filter_hostname)
-                .map(|((_, _), row)| row.softirq)
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
-            let max_softirq = unlocked_historical_data.cpu_details.iter()
-                .filter(|((hostname, _), _)| hostname == filter_hostname)
-                .map(|((_, _), row)| row.softirq)
-                .max_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
-            contextarea.draw_series(AreaSeries::new(unlocked_historical_data.cpu_details.iter()
-                                                        .filter(|((hostname, _), _)| hostname == filter_hostname)
-                                                        .map(|((_, timestamp), row)| (*timestamp, row.softirq + row.irq + row.steal + row.iowait + row.system + row.nice + row.user)),
-                                                    0.0, Palette99::pick(5))
-            )
-                .unwrap()
-                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "softirq", min_softirq, max_softirq))
-                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(5).filled()));
-            let min_irq = unlocked_historical_data.cpu_details.iter()
-                .filter(|((hostname, _), _)| hostname == filter_hostname)
-                .map(|((_, _), row)| row.irq)
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
-            let max_irq = unlocked_historical_data.cpu_details.iter()
-                .filter(|((hostname, _), _)| hostname == filter_hostname)
-                .map(|((_, _), row)| row.irq)
-                .max_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
-            contextarea.draw_series(AreaSeries::new(unlocked_historical_data.cpu_details.iter()
-                                                        .filter(|((hostname, _), _)| hostname == filter_hostname)
-                                                        .map(|((_, timestamp), row)| (*timestamp, row.irq + row.steal + row.iowait + row.system + row.nice + row.user)),
-                                                    0.0, Palette99::pick(6))
-            )
-                .unwrap()
-                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "irq", min_irq, max_irq))
-                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(6).filled()));
-            let min_iowait = unlocked_historical_data.cpu_details.iter()
-                .filter(|((hostname, _), _)| hostname == filter_hostname)
-                .map(|((_, _), row)| row.iowait)
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
-            let max_iowait = unlocked_historical_data.cpu_details.iter()
-                .filter(|((hostname, _), _)| hostname == filter_hostname)
-                .map(|((_, _), row)| row.iowait)
-                .max_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
-            contextarea.draw_series(AreaSeries::new(unlocked_historical_data.cpu_details.iter()
-                                                        .filter(|((hostname, _), _)| hostname == filter_hostname)
-                                                        .map(|((_, timestamp), row)| (*timestamp, row.iowait + row.system + row.nice + row.user)),
-                                                    0.0, Palette99::pick(8))
-            )
-                .unwrap()
-                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "iowait", min_iowait, max_iowait))
-                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(8).filled()));
-            let min_system = unlocked_historical_data.cpu_details.iter()
-                .filter(|((hostname, _), _)| hostname == filter_hostname)
-                .map(|((_, _), row)| row.system)
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
-            let max_system = unlocked_historical_data.cpu_details.iter()
-                .filter(|((hostname, _), _)| hostname == filter_hostname)
-                .map(|((_, _), row)| row.system)
-                .max_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
-            contextarea.draw_series(AreaSeries::new(unlocked_historical_data.cpu_details.iter()
-                                                        .filter(|((hostname, _), _)| hostname == filter_hostname)
-                                                        .map(|((_, timestamp), row)| (*timestamp, row.system + row.nice + row.user)),
-                                                    0.0, Palette99::pick(9))
-            )
-                .unwrap()
-                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "system", min_system, max_system))
-                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(9).filled()));
-            let min_nice = unlocked_historical_data.cpu_details.iter()
-                .filter(|((hostname, _), _)| hostname == filter_hostname)
-                .map(|((_, _), row)| row.nice)
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
-            let max_nice = unlocked_historical_data.cpu_details.iter()
-                .filter(|((hostname, _), _)| hostname == filter_hostname)
-                .map(|((_, _), row)| row.nice)
-                .max_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
-            contextarea.draw_series(AreaSeries::new(unlocked_historical_data.cpu_details.iter()
-                                                        .filter(|((hostname, _), _)| hostname == filter_hostname)
-                                                        .map(|((_, timestamp), row)| (*timestamp, row.nice + row.user)),
-                                                    0.0, Palette99::pick(10))
-            )
-                .unwrap()
-                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "nice", min_nice, max_nice))
-                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(10).filled()));
-            let min_user = unlocked_historical_data.cpu_details.iter()
-                .filter(|((hostname, _), _)| hostname == filter_hostname)
-                .map(|((_, _), row)| row.user)
-                .min_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
-            let max_user = unlocked_historical_data.cpu_details.iter()
-                .filter(|((hostname, _), _)| hostname == filter_hostname)
-                .map(|((_, _), row)| row.user)
-                .max_by(|a, b| a.partial_cmp(b).unwrap())
-                .unwrap();
-            contextarea.draw_series(AreaSeries::new(unlocked_historical_data.cpu_details.iter()
-                                                        .filter(|((hostname, _), _)| hostname == filter_hostname)
-                                                        .map(|((_, timestamp), row)| (*timestamp, row.user)),
-                                                    0.0, GREEN)
-            )
-                .unwrap()
-                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "user", min_user, max_user))
-                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], GREEN.filled()));
-            contextarea.draw_series(AreaSeries::new(unlocked_historical_data.cpu_details.iter()
-                                                        .filter(|((hostname, _), _)| hostname == filter_hostname)
-                                                        .map(|((_, timestamp), row)| (*timestamp, (row.idle + row.guest_nice + row.guest_user + row.softirq + row.irq + row.steal + row.iowait + row.system + row.nice + row.user).round())),
-                                                    0.0, TRANSPARENT).border_style(RED)
-            )
-                .unwrap()
-                .label("total cpu")
-                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], RED.filled()));
 
-             */
+            // read and write latency and queue depth plot
+            // set the plot specifics
+            let low_value_latencies: f64 = 0.0;
+            let high_value_latencies_read = unlocked_historical_data.disk_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.reads_avg_latency_s * 1000. )
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let high_value_latencies_write = unlocked_historical_data.disk_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.writes_avg_latency_s * 1000.)
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let high_value_latencies = high_value_latencies_read.max(high_value_latencies_write);
+            let low_value_queue_depth: f64 = 0.0;
+            let high_value_queue_depth = unlocked_historical_data.disk_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.queue_size)
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+
+            // create the plot
+            multiroot[2].fill(&WHITE).unwrap();
+            let mut contextarea = ChartBuilder::on(&multiroot[2])
+                .set_label_area_size(LabelAreaPosition::Left, 60)
+                .set_label_area_size(LabelAreaPosition::Bottom, 50)
+                .set_label_area_size(LabelAreaPosition::Right, 60)
+                .caption(format!("Latency and queue depth: {} {}", filter_hostname, current_device), ("monospace", 30))
+                .build_cartesian_2d(*start_time..*end_time, low_value_latencies..high_value_latencies)
+                .unwrap()
+                .set_secondary_coord(*start_time..*end_time, low_value_queue_depth..high_value_queue_depth);
+            contextarea.configure_mesh()
+                .x_labels(4)
+                .x_label_formatter(&|x| x.to_rfc3339())
+                .y_desc("Average latency ms")
+                .label_style(("monospace", 17))
+                .draw()
+                .unwrap();
+            contextarea.configure_secondary_axes()
+                .y_desc("queue depth")
+                .label_style(("monospace", 17))
+                .draw()
+                .unwrap();
+            let min_read_latency = unlocked_historical_data.disk_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.reads_avg_latency_s * 1000. )
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let max_read_latency = unlocked_historical_data.disk_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.reads_avg_latency_s * 1000. )
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            contextarea.draw_series(LineSeries::new(unlocked_historical_data.disk_details.iter()
+                                                        .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                                                        .map(|((_, timestamp, _), row)| (*timestamp, row.reads_avg_latency_s * 1000. )),
+                                                    Palette99::pick(1))
+            )
+                .unwrap()
+                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "Read latency ms", min_read_latency, max_read_latency))
+                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(1).filled()));
+            let min_write_latency = unlocked_historical_data.disk_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.writes_avg_latency_s * 1000. )
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let max_write_latency = unlocked_historical_data.disk_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.writes_avg_latency_s * 1000. )
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            contextarea.draw_series(LineSeries::new(unlocked_historical_data.disk_details.iter()
+                                                        .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                                                        .map(|((_, timestamp, _), row)| (*timestamp, row.writes_avg_latency_s * 1000. )),
+                                                    Palette99::pick(2))
+            )
+                .unwrap()
+                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "Write latency ms", min_write_latency, max_write_latency))
+                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(2).filled()));
+            let min_queue_depth = unlocked_historical_data.disk_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.queue_size )
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let max_queue_depth = unlocked_historical_data.disk_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.queue_size )
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            contextarea.draw_secondary_series(LineSeries::new(unlocked_historical_data.disk_details.iter()
+                                                        .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                                                        .map(|((_, timestamp, _), row)| (*timestamp, row.queue_size)),
+                                                    Palette99::pick(3))
+            )
+                .unwrap()
+                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "Queue depth", min_queue_depth, max_queue_depth))
+                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(3).filled()));
             contextarea.configure_series_labels()
                 .border_style(BLACK)
                 .background_style(WHITE.mix(0.7))
