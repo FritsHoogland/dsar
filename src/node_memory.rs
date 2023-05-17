@@ -267,7 +267,7 @@ pub fn print_sar_s(
             let swap_free = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapFree_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
             let swap_total = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapTotal_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
             let swap_used = swap_total - swap_free;
-            let swap_used_percent = swap_used / swap_total * 100.;
+            let swap_used_percent = if (swap_used / swap_total * 100.).is_nan() {0.} else {swap_used / swap_total * 100.};
             let swap_cached = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapCached_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
             let swap_cached_percent = swap_cached / swap_used * 100.;
             let time = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapFree_bytes").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
@@ -343,6 +343,10 @@ pub fn create_memory_plots(
             .label_style(("monospace", 17))
             .draw()
             .unwrap();
+        let ((_, _), latest) = unlocked_historical_data.memory_details.iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname)
+            .max_by_key(|((timestamp, _), _)| timestamp)
+            .unwrap();
         // memory total
         let min_memory_total = unlocked_historical_data.memory_details.iter()
             .filter(|((hostname, _), _)| hostname == filter_hostname)
@@ -360,7 +364,7 @@ pub fn create_memory_plots(
                                                 0.0, Palette99::pick(1))
         )
             .unwrap()
-            .label(format!("{:25} min: {:10.2}, max: {:10.2}", "memory total", min_memory_total, max_memory_total))
+            .label(format!("{:25} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "memory total", min_memory_total, max_memory_total, latest.memtotal/ (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(1).filled()));
         // swap cached + kernelstack + hardware corrupted + slab + pagetables + dirty + cached + anonymous + memfree 12
         let min_memory_swapcached = unlocked_historical_data.memory_details.iter()
@@ -379,7 +383,7 @@ pub fn create_memory_plots(
                                                 0.0, Palette99::pick(12))
         )
             .unwrap()
-            .label(format!("{:25} min: {:10.2}, max: {:10.2}", "swap cached", min_memory_swapcached, max_memory_swapcached))
+            .label(format!("{:25} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "swap cached", min_memory_swapcached, max_memory_swapcached, latest.swapcached / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(12).filled()));
         // kernelstack + hardware corrupted + slab + pagetables + dirty + cached + anonymous + memfree 11
         let min_memory_kernelstack = unlocked_historical_data.memory_details.iter()
@@ -398,7 +402,7 @@ pub fn create_memory_plots(
                                                 0.0, Palette99::pick(11))
         )
             .unwrap()
-            .label(format!("{:25} min: {:10.2}, max: {:10.2}", "kernel stack", min_memory_kernelstack, max_memory_kernelstack))
+            .label(format!("{:25} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "kernel stack", min_memory_kernelstack, max_memory_kernelstack, latest.kernelstack / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(11).filled()));
         // hardware corrupted + slab + pagetables + dirty + cached + anonymous + memfree 10
         let min_memory_corrupted = unlocked_historical_data.memory_details.iter()
@@ -417,7 +421,7 @@ pub fn create_memory_plots(
                                                 0.0, Palette99::pick(10))
         )
             .unwrap()
-            .label(format!("{:25} min: {:10.2}, max: {:10.2}", "hardware corrupted", min_memory_corrupted, max_memory_corrupted))
+            .label(format!("{:25} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "hardware corrupted", min_memory_corrupted, max_memory_corrupted, latest.hardwarecorrupted / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(10).filled()));
         // slab + pagetables + dirty + cached + anonymous + memfree 9
         let min_memory_slab = unlocked_historical_data.memory_details.iter()
@@ -436,7 +440,7 @@ pub fn create_memory_plots(
                                                 0.0, Palette99::pick(9))
         )
             .unwrap()
-            .label(format!("{:25} min: {:10.2}, max: {:10.2}", "slab", min_memory_slab, max_memory_slab))
+            .label(format!("{:25} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "slab", min_memory_slab, max_memory_slab, latest.slab / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(9).filled()));
         // pagetables 8
         // pagetables + shmem + cached + anonymous + memfree 8
@@ -456,7 +460,7 @@ pub fn create_memory_plots(
                                                 0.0, Palette99::pick(8))
         )
             .unwrap()
-            .label(format!("{:25} min: {:10.2}, max: {:10.2}", "pagetables", min_memory_pagetables, max_memory_pagetables))
+            .label(format!("{:25} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "pagetables", min_memory_pagetables, max_memory_pagetables, latest.pagetables / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(8).filled()));
         // dirty 7
         // cached + anonymous + memfree 7
@@ -476,7 +480,7 @@ pub fn create_memory_plots(
                                                 0.0, Palette99::pick(7))
         )
             .unwrap()
-            .label(format!("{:25} min: {:10.2}, max: {:10.2}", "dirty", min_memory_dirty, max_memory_dirty))
+            .label(format!("{:25} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "dirty", min_memory_dirty, max_memory_dirty, latest.dirty / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(7).filled()));
         // shared memory 6
         // first looked like being inside cached, now it seems not to
@@ -496,7 +500,7 @@ pub fn create_memory_plots(
                                                 0.0, Palette99::pick(6))
         )
             .unwrap()
-            .label(format!("{:25} min: {:10.2}, max: {:10.2}", "shared memory", min_memory_shared, max_memory_shared))
+            .label(format!("{:25} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "shared memory", min_memory_shared, max_memory_shared, latest.shmem / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(6).filled()));
         // mapped  5
         // cached - dirty + anonymous + memfree 5
@@ -516,7 +520,7 @@ pub fn create_memory_plots(
                                                 0.0, Palette99::pick(5))
         )
             .unwrap()
-            .label(format!("{:25} min: {:10.2}, max: {:10.2}", "mapped", min_memory_mapped, max_memory_mapped))
+            .label(format!("{:25} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "mapped", min_memory_mapped, max_memory_mapped, (latest.mapped - latest.shmem).max(0.) / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(5).filled()));
         // cached 4
         // cached - mapped - dirty + anonymous + memfree 4
@@ -537,7 +541,7 @@ pub fn create_memory_plots(
                                                 0.0, Palette99::pick(4))
         )
             .unwrap()
-            .label(format!("{:25} min: {:10.2}, max: {:10.2}", "cached", min_memory_cached, max_memory_cached))
+            .label(format!("{:25} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "cached", min_memory_cached, max_memory_cached, (latest.cached - latest.mapped.max(latest.shmem) - latest.dirty) / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(4).filled()));
         // anonymous 3
         // anonymous + memfree
@@ -557,7 +561,7 @@ pub fn create_memory_plots(
                                                 0.0, Palette99::pick(3))
         )
             .unwrap()
-            .label(format!("{:25} min: {:10.2}, max: {:10.2}", "anonymous", min_memory_anonymous, max_memory_anonymous))
+            .label(format!("{:25} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "anonymous", min_memory_anonymous, max_memory_anonymous, latest.anonpages / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(3).filled()));
         // memfree 2
         let min_memory_free = unlocked_historical_data.memory_details.iter()
@@ -576,7 +580,7 @@ pub fn create_memory_plots(
                                                 0.0, Palette99::pick(2))
         )
             .unwrap()
-            .label(format!("{:25} min: {:10.2}, max: {:10.2}", "memory free", min_memory_free, max_memory_free))
+            .label(format!("{:25} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "memory free", min_memory_free, max_memory_free, latest.memfree / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(2).filled()));
         // available memory: line - RED
         let min_memory_available = unlocked_historical_data.memory_details.iter()
@@ -595,7 +599,7 @@ pub fn create_memory_plots(
                                                 ShapeStyle { color: RED.into(), filled: false, stroke_width: 2} )
         )
             .unwrap()
-            .label(format!("{:25} min: {:10.2}, max: {:10.2}", "memory available", min_memory_available, max_memory_available))
+            .label(format!("{:25} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "memory available", min_memory_available, max_memory_available, latest.memavailable / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], RED.filled()));
         contextarea.configure_series_labels()
             .border_style(BLACK)
@@ -644,7 +648,7 @@ pub fn create_memory_plots(
                                                 0.0, Palette99::pick(1))
         )
             .unwrap()
-            .label(format!("{:25} min: {:10.2}, max: {:10.2}", "swap total", min_swap_total, max_swap_total))
+            .label(format!("{:25} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "swap total", min_swap_total, max_swap_total, latest.swaptotal / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(1).filled()));
         let min_swap_used = unlocked_historical_data.memory_details.iter()
             .filter(|((hostname, _), _)| hostname == filter_hostname)
@@ -662,7 +666,7 @@ pub fn create_memory_plots(
                                                 0.0, Palette99::pick(2))
         )
             .unwrap()
-            .label(format!("{:25} min: {:10.2}, max: {:10.2}", "swap used", min_swap_used, max_swap_used))
+            .label(format!("{:25} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "swap used", min_swap_used, max_swap_used, (latest.swaptotal - latest.swapfree) / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(2).filled()));
         contextarea.configure_series_labels()
             .border_style(BLACK)

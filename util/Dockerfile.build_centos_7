@@ -6,7 +6,7 @@ COPY . .
 
 # prepare operating system and install rust
 RUN yum update -y
-RUN yum install -y openssl-devel gcc
+RUN yum install -y openssl-devel gcc cmake gcc-c++ freetype-devel expat-devel open-sans-fonts fontconfig-devel
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin:/root/.cargo/bin
 

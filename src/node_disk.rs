@@ -22,6 +22,8 @@ pub struct NodeDiskDetails {
     pub discards_avg_latency: f64,
     pub discards_merged_s: f64,
     pub queue_size: f64,
+    pub xfs_read_calls_s: f64,
+    pub xfs_write_calls_s: f64,
 }
 
 pub fn process_statistic(
@@ -80,10 +82,10 @@ pub fn create_total(
         "node_xfs_read_calls_total" |
         "node_xfs_write_calls_total" => {
             let last_timestamp = statistics.iter().find(|((hostname, metric, device, _), _)| hostname == host && metric == &sample.metric && device != "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
-                let per_second_value = statistics.iter().filter(|((hostname, metric, device, _), _)| hostname == host && metric == &sample.metric && device != "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
-                statistics.entry((host.to_string(), sample.metric.to_string(), "total".to_string(), "".to_string()))
-                    .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; row.first_value = false; })
-                    .or_insert(Statistic { per_second_value, last_timestamp, first_value: true, ..Default::default() });
+            let per_second_value = statistics.iter().filter(|((hostname, metric, device, _), _)| hostname == host && metric == &sample.metric && device != "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            statistics.entry((host.to_string(), sample.metric.to_string(), "total".to_string(), "".to_string()))
+                .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; row.first_value = false; })
+                .or_insert(Statistic { per_second_value, last_timestamp, first_value: true, ..Default::default() });
         },
         &_ => {},
     }
@@ -317,9 +319,17 @@ pub fn create_disk_plots(
     {
         for current_device in unlocked_historical_data.disk_details.iter().filter(|((hostname, _, _), _)| hostname == filter_hostname).map(|((_, _, device), _)| device).unique()
         {
+            let mut number_of_areas = 4;
+            let mut y_size_of_root = 2800;
+
+            if current_device != "total"
+            {
+                number_of_areas = 3;
+                y_size_of_root = 2100;
+            }
             let filename = format!("{}_disk_{}.png", filter_hostname, current_device);
-            let root = BitMapBackend::new(&filename, (1280, 2100)).into_drawing_area();
-            let multiroot = root.split_evenly((3, 1));
+            let root = BitMapBackend::new(&filename, (1280, y_size_of_root)).into_drawing_area();
+            let multiroot = root.split_evenly((number_of_areas, 1));
 
 
             // MBPS plot
@@ -577,6 +587,78 @@ pub fn create_disk_plots(
                 .position(UpperLeft)
                 .draw()
                 .unwrap();
+
+            if current_device == "total"
+            {
+                // XFS IOPS
+                // set the plot specifics
+                let low_value_xfs_iops: f64 = 0.0;
+                let high_value_xfs_iops = unlocked_historical_data.disk_details.iter()
+                    .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                    .map(|((_, _, _), row)| row.xfs_read_calls_s + row.xfs_write_calls_s)
+                    .max_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap();
+
+                // create the plot
+                multiroot[3].fill(&WHITE).unwrap();
+                let mut contextarea = ChartBuilder::on(&multiroot[3])
+                    .set_label_area_size(LabelAreaPosition::Left, 60)
+                    .set_label_area_size(LabelAreaPosition::Bottom, 50)
+                    .set_label_area_size(LabelAreaPosition::Right, 60)
+                    .caption(format!("XFS IOPS: {} {}", filter_hostname, current_device), ("monospace", 30))
+                    .build_cartesian_2d(*start_time..*end_time, low_value_xfs_iops..high_value_xfs_iops)
+                    .unwrap();
+                contextarea.configure_mesh()
+                    .x_labels(4)
+                    .x_label_formatter(&|x| x.to_rfc3339())
+                    .y_desc("IOPS")
+                    .label_style(("monospace", 17))
+                    .draw()
+                    .unwrap();
+                let min_xfs_read_iops = unlocked_historical_data.disk_details.iter()
+                    .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                    .map(|((_, _, _), row)| row.xfs_read_calls_s)
+                    .min_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap();
+                let max_xfs_read_iops = unlocked_historical_data.disk_details.iter()
+                    .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                    .map(|((_, _, _), row)| row.xfs_read_calls_s)
+                    .max_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap();
+                contextarea.draw_series(LineSeries::new(unlocked_historical_data.disk_details.iter()
+                                                            .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                                                            .map(|((_, timestamp, _), row)| (*timestamp, row.xfs_read_calls_s + row.xfs_write_calls_s)),
+                                                        Palette99::pick(1))
+                )
+                    .unwrap()
+                    .label(format!("{:25} min: {:10.2}, max: {:10.2}", "XFS read IOPS", min_xfs_read_iops, max_xfs_read_iops))
+                    .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(1).filled()));
+                let min_xfs_write_iops = unlocked_historical_data.disk_details.iter()
+                    .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                    .map(|((_, _, _), row)| row.xfs_write_calls_s)
+                    .min_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap();
+                let max_xfs_write_iops = unlocked_historical_data.disk_details.iter()
+                    .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                    .map(|((_, _, _), row)| row.xfs_write_calls_s)
+                    .max_by(|a, b| a.partial_cmp(b).unwrap())
+                    .unwrap();
+                contextarea.draw_series(LineSeries::new(unlocked_historical_data.disk_details.iter()
+                                                            .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                                                            .map(|((_, timestamp, _), row)| (*timestamp, row.xfs_write_calls_s)),
+                                                        Palette99::pick(2))
+                )
+                    .unwrap()
+                    .label(format!("{:25} min: {:10.2}, max: {:10.2}", "XFS write IOPS", min_xfs_write_iops, max_xfs_write_iops))
+                    .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(2).filled()));
+                contextarea.configure_series_labels()
+                    .border_style(BLACK)
+                    .background_style(WHITE.mix(0.7))
+                    .label_font(("monospace", 15))
+                    .position(UpperLeft)
+                    .draw()
+                    .unwrap();
+            };
         }
     }
 }

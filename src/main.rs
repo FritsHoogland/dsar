@@ -81,6 +81,9 @@ pub struct Opts
     /// Output
     #[arg(short = 'o', long, value_name = "option", value_enum, default_value_t = OutputOptions::SarU )]
     output: OutputOptions,
+    /// Graph
+    #[arg(short = 'g', long, value_name = "graph")]
+    graph: bool,
 }
 
 #[tokio::main]
@@ -96,10 +99,13 @@ async fn main()
     let historical_data_loop = historical_data.clone();
 
     ctrlc::set_handler(move || {
-        create_cpu_plots(&historical_data_ctrlc);
-        create_disk_plots(&historical_data_ctrlc);
-        create_memory_plots(&historical_data_ctrlc);
-        create_yb_memory_plots(&historical_data_ctrlc);
+        if args.graph
+        {
+            create_cpu_plots(&historical_data_ctrlc);
+            create_disk_plots(&historical_data_ctrlc);
+            create_memory_plots(&historical_data_ctrlc);
+            create_yb_memory_plots(&historical_data_ctrlc);
+        };
         process::exit(0);
     }).unwrap();
 

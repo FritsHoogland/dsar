@@ -124,6 +124,11 @@ impl HistoricalData {
                     let discards_time_s = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_discard_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
                     let discards_avg_latency = if (discards_time_s / discards_completed_s).is_nan() { 0. } else { discards_time_s / discards_completed_s };
 
+                    // xfs is per partition, disks are per disk
+                    // but both share 'total'!
+                    let xfs_read_calls_s = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_xfs_read_calls_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
+                    let xfs_write_calls_s = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_xfs_write_calls_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
+
                     let queue_size = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_io_time_weighted_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
                     let timestamp = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_read_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
 
@@ -142,6 +147,8 @@ impl HistoricalData {
                             discards_avg_latency,
                             discards_merged_s,
                             queue_size,
+                            xfs_read_calls_s,
+                            xfs_write_calls_s,
                         }
                     );
                 }

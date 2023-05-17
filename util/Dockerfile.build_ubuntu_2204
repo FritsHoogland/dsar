@@ -6,7 +6,7 @@ COPY . .
 
 # prepare operating system and install rust
 RUN apt update && apt upgrade -y
-RUN apt-get install -y curl gcc libssl-dev pkg-config
+RUN apt-get install -y curl gcc libssl-dev pkg-config libfreetype6-dev libfontconfig1-dev dpkg-dev
 RUN curl https://sh.rustup.rs -sSf | sh -s -- -y
 ENV PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin:/root/.cargo/bin
 
