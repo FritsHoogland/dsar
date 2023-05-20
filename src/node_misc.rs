@@ -55,6 +55,7 @@ pub fn process_statistic(
                 .and_modify( |row| {
                     row.last_value = value;
                     row.last_timestamp = sample.timestamp;
+                    row.first_value = false;
                     debug!("{} last_value: {}, last_timestamp: {}", sample.metric, row.last_value, row.last_timestamp);
                 } )
                 .or_insert(
@@ -62,6 +63,7 @@ pub fn process_statistic(
                     {
                         last_value: value,
                         last_timestamp: sample.timestamp,
+                        first_value: true,
                         ..Default::default()
                     }
                 );
@@ -76,15 +78,15 @@ pub fn print_sar_q(
 {
     for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
     {
-        if statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_load1").count() > 0
+        if statistics.iter().any(|((host, metric, _, _), _)| host == hostname && metric == "node_load1")
         {
-            let runqueue_size = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "runqueue_size_does_not_exist").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap_or_default();
-            let tasklist_size = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "tasklist_size_does_not_exist").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap_or_default();
-            let node_load_1 = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_load1").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let node_load_5 = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_load5").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let node_load_15 = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_load15").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let node_procs_blocked = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_procs_blocked").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let time = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_load1").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+            let runqueue_size = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "runqueue_size_does_not_exist").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default();
+            let tasklist_size = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "tasklist_size_does_not_exist").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default();
+            let node_load_1 = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_load1").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let node_load_5 = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_load5").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let node_load_15 = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_load15").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let node_procs_blocked = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_procs_blocked").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let time = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_load1").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
             println!("{:30} {:8} {:10.0} {:10.0} {:10.2} {:10.2} {:10.2} {:10.0}",
                      hostname,
                      time.format("%H:%M:%S"),
@@ -112,4 +114,6 @@ pub fn print_sar_q_header()
              "blocked",
     );
 }
+
+
 

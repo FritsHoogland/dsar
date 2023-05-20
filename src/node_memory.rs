@@ -99,29 +99,29 @@ pub fn print_sar_r(
 {
     for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
     {
-        if statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_MemFree_bytes").count() > 0
+        if statistics.iter().any(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_MemFree_bytes")
         {
-            let memory_free = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_MemFree_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let memory_available = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_MemAvailable_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let memory_total = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_MemTotal_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
+            let memory_free = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_MemFree_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let memory_available = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_MemAvailable_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let memory_total = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_MemTotal_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
             let memory_used = memory_total - memory_free;
-            let memory_buffers = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Buffers_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let memory_cached = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Cached_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let memory_commit = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Committed_AS_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let memory_swap_total = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapTotal_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let memory_active = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Active_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let memory_inactive = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Inactive_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let memory_dirty = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Dirty_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let memory_anonymous = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_AnonPages_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let memory_slab = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Slab_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let memory_kernel_stack = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_KernelStack_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let memory_pagetables = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_PageTables_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let memory_swapcached = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapCached_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let memory_shared = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Shmem_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let memory_mapped = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Mapped_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let memory_hardware_corrupted = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_HardwareCorrupted_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let memory_virtual_memory = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_VmallocTotal_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let time = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_MemFree_bytes").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+            let memory_buffers = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Buffers_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let memory_cached = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Cached_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let memory_commit = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Committed_AS_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let memory_swap_total = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapTotal_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let memory_active = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Active_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let memory_inactive = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Inactive_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let memory_dirty = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Dirty_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let memory_anonymous = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_AnonPages_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let memory_slab = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Slab_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let memory_kernel_stack = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_KernelStack_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let memory_pagetables = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_PageTables_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let memory_swapcached = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapCached_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let memory_shared = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Shmem_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let memory_mapped = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Mapped_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let memory_hardware_corrupted = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_HardwareCorrupted_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let memory_virtual_memory = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_VmallocTotal_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let time = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_MemFree_bytes").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
             match mode
             {
                 "normal" => {
@@ -262,15 +262,15 @@ pub fn print_sar_s(
 {
     for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
     {
-        if statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapFree_bytes").count() > 0
+        if statistics.iter().any(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapFree_bytes")
         {
-            let swap_free = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapFree_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
-            let swap_total = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapTotal_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
+            let swap_free = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapFree_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let swap_total = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapTotal_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
             let swap_used = swap_total - swap_free;
-            let swap_used_percent = if (swap_used / swap_total * 100.).is_nan() {0.} else {swap_used / swap_total * 100.};
-            let swap_cached = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapCached_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).next().unwrap();
+            let swap_used_percent = (swap_used / swap_total).max(0.) * 100.;
+            let swap_cached = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapCached_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
             let swap_cached_percent = swap_cached / swap_used * 100.;
-            let time = statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapFree_bytes").map(|((_, _, _, _), statistic)| statistic.last_timestamp).next().unwrap();
+            let time = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapFree_bytes").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
             println!("{:30} {:8} {:10.0} {:10.0} {:10.2} {:10.0} {:10.2}",
                      hostname,
                      time.format("%H:%M:%S"),

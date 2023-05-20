@@ -32,6 +32,7 @@ pub fn process_statistic(
             row.per_second_value = row.delta_value / (sample.timestamp.signed_duration_since(row.last_timestamp).num_milliseconds() as f64 / 1000.);
             row.last_value = value;
             row.last_timestamp = sample.timestamp;
+            row.first_value = false;
             debug!("{}: {} last_value: {}, last_timestamp: {}, delta_value: {}, per_second_value: {}", hostname, sample.metric, row.last_value, row.last_timestamp, row.delta_value, row.per_second_value);
         } )
         .or_insert(
@@ -39,6 +40,7 @@ pub fn process_statistic(
             {
                 last_value: value,
                 last_timestamp: sample.timestamp,
+                first_value: true,
                 ..Default::default()
             });
 

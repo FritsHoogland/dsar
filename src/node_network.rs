@@ -70,12 +70,14 @@ pub fn process_statistic(
                 .and_modify( |row| {
                     row.last_value = value;
                     row.last_timestamp = sample.timestamp;
+                    row.first_value = false;
                 } )
                 .or_insert(
                     Statistic
                     {
                         last_value: value,
                         last_timestamp: sample.timestamp,
+                        first_value: true,
                         ..Default::default()
                     }
                 );
