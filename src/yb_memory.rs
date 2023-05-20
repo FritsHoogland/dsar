@@ -176,6 +176,10 @@ pub fn create_yb_memory_plots(
             .map(|((_, _), row)| row.generic_heap / (1024.*1024.))
             .max_by(|a, b| a.partial_cmp(b).unwrap())
             .unwrap();
+        let ((_, _), latest) = unlocked_historical_data.yb_memory_details.iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname)
+            .max_by_key(|((timestamp, _), _)| timestamp)
+            .unwrap();
         let filename = format!("{}_yb_memory.png", filter_hostname);
 
         // create the plot
@@ -211,7 +215,7 @@ pub fn create_yb_memory_plots(
                                                 0.0, Palette99::pick(1))
         )
             .unwrap()
-            .label(format!("{:30} min: {:10.2}, max: {:10.2}", "generic heap", min_generic_heap, max_generic_heap))
+            .label(format!("{:30} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "generic heap", min_generic_heap, max_generic_heap, latest.generic_heap / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(1).filled()));
         let min_generic_allocated = unlocked_historical_data.yb_memory_details.iter()
             .filter(|((hostname, _), _)| hostname == filter_hostname)
@@ -229,7 +233,7 @@ pub fn create_yb_memory_plots(
                                                 0.0, Palette99::pick(2))
         )
             .unwrap()
-            .label(format!("{:30} min: {:10.2}, max: {:10.2}", "generic allocated", min_generic_allocated, max_generic_allocated))
+            .label(format!("{:30} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "generic allocated", min_generic_allocated, max_generic_allocated, latest.generic_allocated / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(2).filled()));
 
 
@@ -249,7 +253,7 @@ pub fn create_yb_memory_plots(
                                                 0.0, Palette99::pick(13))
         )
             .unwrap()
-            .label(format!("{:30} min: {:10.2}, max: {:10.2}", "pageheap free", min_pageheap_free, max_pageheap_free))
+            .label(format!("{:30} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "pageheap free", min_pageheap_free, max_pageheap_free, latest.tcmalloc_pageheap_free / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(13).filled()));
 
         let min_tcmalloc_current_thread_cache = unlocked_historical_data.yb_memory_details.iter()
@@ -268,7 +272,7 @@ pub fn create_yb_memory_plots(
                                                 0.0, Palette99::pick(12))
         )
             .unwrap()
-            .label(format!("{:30} min: {:10.2}, max: {:10.2}", "current total threadcache", min_tcmalloc_current_thread_cache, max_tcmalloc_current_thread_cache))
+            .label(format!("{:30} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "current total threadcache", min_tcmalloc_current_thread_cache, max_tcmalloc_current_thread_cache, latest.tcmalloc_current_total_thread_cache / (1024.* 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(12).filled()));
         let min_mem_tracker_independent = unlocked_historical_data.yb_memory_details.iter()
             .filter(|((hostname, _), _)| hostname == filter_hostname)
@@ -286,7 +290,7 @@ pub fn create_yb_memory_plots(
                                                 0.0, Palette99::pick(11))
         )
             .unwrap()
-            .label(format!("{:30} min: {:10.2}, max: {:10.2}", "mem_tracker independent", min_mem_tracker_independent, max_mem_tracker_independent))
+            .label(format!("{:30} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "mem_tracker independent", min_mem_tracker_independent, max_mem_tracker_independent, latest.mem_tracker_independent_allocs / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(11).filled()));
         //
         // mem trackers
@@ -308,7 +312,7 @@ pub fn create_yb_memory_plots(
                                                 0.0, Palette99::pick(3))
         )
             .unwrap()
-            .label(format!("{:30} min: {:10.2}, max: {:10.2}", "mem_tracker", min_mem_tracker, max_mem_tracker))
+            .label(format!("{:30} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "mem_tracker", min_mem_tracker, max_mem_tracker, latest.mem_tracker / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(3).filled()));
 
         let min_mem_tracker_call = unlocked_historical_data.yb_memory_details.iter()
@@ -327,7 +331,7 @@ pub fn create_yb_memory_plots(
                                                 0.0, Palette99::pick(9))
         )
             .unwrap()
-            .label(format!("{:30} min: {:10.2}, max: {:10.2}", "mem_tracker call", min_mem_tracker_call, max_mem_tracker_call))
+            .label(format!("{:30} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "mem_tracker call", min_mem_tracker_call, max_mem_tracker_call, latest.mem_tracker_call / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(9).filled()));
         let min_mem_tracker_read_buffer = unlocked_historical_data.yb_memory_details.iter()
             .filter(|((hostname, _), _)| hostname == filter_hostname)
@@ -345,7 +349,7 @@ pub fn create_yb_memory_plots(
                                                 0.0, Palette99::pick(8))
         )
             .unwrap()
-            .label(format!("{:30} min: {:10.2}, max: {:10.2}", "mem_tracker read buffer", min_mem_tracker_read_buffer, max_mem_tracker_read_buffer))
+            .label(format!("{:30} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "mem_tracker read buffer", min_mem_tracker_read_buffer, max_mem_tracker_read_buffer, latest.mem_tracker_read_buffer / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(8).filled()));
         let min_mem_tracker_compressed_read_buffer = unlocked_historical_data.yb_memory_details.iter()
             .filter(|((hostname, _), _)| hostname == filter_hostname)
@@ -363,7 +367,7 @@ pub fn create_yb_memory_plots(
                                                 0.0, Palette99::pick(7))
         )
             .unwrap()
-            .label(format!("{:30} min: {:10.2}, max: {:10.2}", "mem_tracker comp. read buffer", min_mem_tracker_compressed_read_buffer, max_mem_tracker_compressed_read_buffer))
+            .label(format!("{:30} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "mem_tracker comp. read buffer", min_mem_tracker_compressed_read_buffer, max_mem_tracker_compressed_read_buffer, latest.mem_tracker_compressed_read_buffer / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(7).filled()));
         let min_mem_tracker_tablets = unlocked_historical_data.yb_memory_details.iter()
             .filter(|((hostname, _), _)| hostname == filter_hostname)
@@ -381,7 +385,7 @@ pub fn create_yb_memory_plots(
                                                 0.0, Palette99::pick(6))
         )
             .unwrap()
-            .label(format!("{:30} min: {:10.2}, max: {:10.2}", "mem_tracker tablets", min_mem_tracker_tablets, max_mem_tracker_tablets))
+            .label(format!("{:30} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "mem_tracker tablets", min_mem_tracker_tablets, max_mem_tracker_tablets, latest.mem_tracker_tablets / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(6).filled()));
         let min_mem_tracker_log_cache = unlocked_historical_data.yb_memory_details.iter()
             .filter(|((hostname, _), _)| hostname == filter_hostname)
@@ -399,7 +403,7 @@ pub fn create_yb_memory_plots(
                                                 0.0, Palette99::pick(5))
         )
             .unwrap()
-            .label(format!("{:30} min: {:10.2}, max: {:10.2}", "mem_tracker_log_cache", min_mem_tracker_log_cache, max_mem_tracker_log_cache))
+            .label(format!("{:30} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "mem_tracker_log_cache", min_mem_tracker_log_cache, max_mem_tracker_log_cache, latest.mem_tracker_log_cache / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(5).filled()));
         let min_mem_tracker_blockbasedtable = unlocked_historical_data.yb_memory_details.iter()
             .filter(|((hostname, _), _)| hostname == filter_hostname)
@@ -417,7 +421,7 @@ pub fn create_yb_memory_plots(
                                                 0.0, Palette99::pick(4))
         )
             .unwrap()
-            .label(format!("{:30} min: {:10.2}, max: {:10.2}", "mem_tracker_blockbasedtable", min_mem_tracker_blockbasedtable, max_mem_tracker_blockbasedtable))
+            .label(format!("{:30} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "mem_tracker_blockbasedtable", min_mem_tracker_blockbasedtable, max_mem_tracker_blockbasedtable, latest.mem_tracker_blockbasedtable / (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(4).filled()));
         contextarea.configure_series_labels()
             .border_style(BLACK)

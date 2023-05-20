@@ -327,6 +327,10 @@ pub fn create_memory_plots(
             .map(|((_, _), row)| (row.memtotal + row.memtotal * 0.1) / (1024. * 1024.))
             .max_by(|a, b| a.partial_cmp(b).unwrap())
             .unwrap();
+        let ((_, _), latest) = unlocked_historical_data.memory_details.iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname)
+            .max_by_key(|((timestamp, _), _)| timestamp)
+            .unwrap();
 
         // create the memory plot
         let mut contextarea = ChartBuilder::on(&upper)
@@ -342,10 +346,6 @@ pub fn create_memory_plots(
             .y_desc("Memory MB")
             .label_style(("monospace", 17))
             .draw()
-            .unwrap();
-        let ((_, _), latest) = unlocked_historical_data.memory_details.iter()
-            .filter(|((hostname, _), _)| hostname == filter_hostname)
-            .max_by_key(|((timestamp, _), _)| timestamp)
             .unwrap();
         // memory total
         let min_memory_total = unlocked_historical_data.memory_details.iter()

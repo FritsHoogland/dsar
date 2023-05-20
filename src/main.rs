@@ -19,7 +19,7 @@ use dsar::node_misc::{print_sar_q, print_sar_q_header};
 use dsar::yb_cpu::{print_yb_cpu, print_yb_cpu_header};
 use dsar::yb_network::{print_yb_network, print_yb_network_header};
 use dsar::yb_memory::{print_yb_memory, print_yb_memory_header, create_yb_memory_plots};
-use dsar::yb_io::{print_yb_io, print_yb_io_header};
+use dsar::yb_io::{print_yb_io, print_yb_io_header, create_yb_io_plots};
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 enum OutputOptions
@@ -105,6 +105,7 @@ async fn main()
             create_disk_plots(&historical_data_ctrlc);
             create_memory_plots(&historical_data_ctrlc);
             create_yb_memory_plots(&historical_data_ctrlc);
+            create_yb_io_plots(&historical_data_ctrlc);
         };
         process::exit(0);
     }).unwrap();

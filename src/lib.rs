@@ -11,6 +11,7 @@ use crate::node_cpu::NodeCpuDetails;
 use crate::node_disk::NodeDiskDetails;
 use crate::node_memory::NodeMemoryDetails;
 use crate::yb_memory::YbMemoryDetails;
+use crate::yb_io::YbIoDetails;
 
 pub mod node_cpu;
 pub mod node_disk;
@@ -37,7 +38,8 @@ pub struct HistoricalData {
     pub cpu_details: BTreeMap<(String, DateTime<Utc>), NodeCpuDetails>,
     pub disk_details: BTreeMap<(String, DateTime<Utc>, String), NodeDiskDetails>,
     pub memory_details: BTreeMap<(String, DateTime<Utc>), NodeMemoryDetails>,
-    pub yb_memory_details: BTreeMap<(String, DateTime<Utc>), YbMemoryDetails>
+    pub yb_memory_details: BTreeMap<(String, DateTime<Utc>), YbMemoryDetails>,
+    pub yb_io_details: BTreeMap<(String, DateTime<Utc>), YbIoDetails>,
 }
 
 impl HistoricalData {
@@ -53,6 +55,7 @@ impl HistoricalData {
         self.add_node_disk_statistics(statistics);
         self.add_node_memory_statistics(statistics);
         self.add_yb_memory_statistics(statistics);
+        self.add_yb_io_statistics(statistics);
     }
     pub fn add_node_cpu_statistics(
         &mut self,
@@ -118,10 +121,11 @@ impl HistoricalData {
                     let writes_time_s = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_write_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
                     let writes_avg_latency_s = if (writes_time_s / writes_completed_s).is_nan() { 0. } else { writes_time_s / writes_completed_s };
 
-                    let discards_completed_s = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_discards_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
-                    let discards_sectors_s = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_discarded_sectors_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
-                    let discards_merged_s = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_discards_merged_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
-                    let discards_time_s = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_discard_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                    // discards are not available with either centos 7 or an earlier node_exporter version
+                    let discards_completed_s = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_discards_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
+                    let discards_sectors_s = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_discarded_sectors_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
+                    let discards_merged_s = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_discards_merged_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
+                    let discards_time_s = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_discard_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
                     let discards_avg_latency = if (discards_time_s / discards_completed_s).is_nan() { 0. } else { discards_time_s / discards_completed_s };
 
                     // xfs is per partition, disks are per disk
@@ -177,19 +181,19 @@ impl HistoricalData {
                 let directmap2m = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_DirectMap2M_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let directmap4k = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_DirectMap4k_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let dirty = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Dirty_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
-                let filehugepages = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_FileHugePages_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
-                let filepmdmapped = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_FilePmdMapped_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let filehugepages = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_FileHugePages_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default(); // centos 7 / old node exporter
+                let filepmdmapped = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_FilePmdMapped_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default(); // centos 7 / old node exporter
                 let hardwarecorrupted = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_HardwareCorrupted_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let hugepages_free = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_HugePages_Free").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let hugepages_rsvd = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_HugePages_Rsvd").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let hugepages_surp = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_HugePages_Surp").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let hugepages_total = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_HugePages_Total").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let hugepagesize = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Hugepagesize_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
-                let hugetlb = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Hugetlb_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let hugetlb = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Hugetlb_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default(); // centos 7 / old node exporter
                 let inactive_anon = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Inactive_anon_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let inactive = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Inactive_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let inactive_file = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Inactive_file_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
-                let kreclaimable = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_KReclaimable_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let kreclaimable = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_KReclaimable_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default(); // centos 7 / old node exporter
                 let kernelstack = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_KernelStack_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let mapped = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Mapped_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let memavailable = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_MemAvailable_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
@@ -198,11 +202,11 @@ impl HistoricalData {
                 let mlocked = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Mlocked_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let nfs_unstable = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_NFS_Unstable_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let pagetables = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_PageTables_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
-                let percpu = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Percpu_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let percpu = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Percpu_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default(); // centos 7 / old node exporter
                 let sreclaimable = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SReclaimable_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let sunreclaim = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SUnreclaim_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
-                let shmemhugepages = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_ShmemHugePages_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
-                let shmempmdmapped = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_ShmemPmdMapped_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let shmemhugepages = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_ShmemHugePages_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default(); // centos 7 / old node exporter
+                let shmempmdmapped = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_ShmemPmdMapped_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default(); // centos 7 / old node exporter
                 let shmem = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Shmem_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let slab = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Slab_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let swapcached = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_SwapCached_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
@@ -214,7 +218,7 @@ impl HistoricalData {
                 let vmallocused = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_VmallocUsed_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let writebacktmp = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_WritebackTmp_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let writeback = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Writeback_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
-                let timestamp = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Active_anon_bytes").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
+                let timestamp = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_MemFree_bytes").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
                 self.memory_details.entry((hostname.to_string(), timestamp)).or_insert(
                     NodeMemoryDetails{
                         active_anon,
@@ -320,6 +324,64 @@ impl HistoricalData {
                         mem_tracker_log_cache,
                         mem_tracker_blockbasedtable,
                         mem_tracker_independent_allocs,
+                    }
+                );
+            }
+        }
+    }
+    pub fn add_yb_io_statistics(
+        &mut self,
+        statistics: &BTreeMap<(String, String, String, String), Statistic>,
+    )
+    {
+        for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
+        {
+            if statistics.iter().any(|((host, metric, metric_type, _), row)| host == hostname && metric == "glog_info_messages" && metric_type == "server" && !row.first_value )
+            {
+                let glog_info_messages = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "glog_info_messages" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let glog_warning_messages = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "glog_warning_messages" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default(); // statistic does not exist if no warnings have been generated
+                let glog_error_messages = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "glog_error_messages" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default(); // probably the same for error messages
+                let guaranteed_last_timestamp = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "glog_info_messages" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
+
+                let log_bytes_logged = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "log_bytes_logged" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                let log_reader_bytes_read = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "log_reader_bytes_read" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                let log_sync_latency_count = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "log_sync_latency_count" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                let log_sync_latency_sum = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "log_sync_latency_sum" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                let log_append_latency_count = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "log_append_latency_count" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                let log_append_latency_sum = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "log_append_latency_sum" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                let log_cache_disk_reads = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "log_cache_disk_reads" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                let rocksdb_flush_write_bytes = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "rocksdb_flush_write_bytes" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                let intentsdb_rocksdb_flush_write_bytes = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "intentsdb_rocksdb_flush_write_bytes" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                let rocksdb_compact_read_bytes = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "rocksdb_compact_read_bytes" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                let intentsdb_rocksdb_compact_read_bytes = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "intentsdb_rocksdb_compact_read_bytes" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                let rocksdb_compact_write_bytes = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "rocksdb_compact_write_bytes" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                let intentsdb_rocksdb_compact_write_bytes = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "intentsdb_rocksdb_compact_write_bytes" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                let rocksdb_write_raw_block_micros_count = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "rocksdb_write_raw_block_micros_count" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                let rocksdb_write_raw_block_micros_sum = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "rocksdb_write_raw_block_micros_sum" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                let rocksdb_sst_read_micros_count = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "rocksdb_sst_read_micros_count" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                let rocksdb_sst_read_micros_sum = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "rocksdb_sst_read_micros_sum" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                self.yb_io_details.entry((hostname.to_string(), guaranteed_last_timestamp)).or_insert(
+                    YbIoDetails {
+                        glog_info_messages,
+                        glog_warning_messages,
+                        glog_error_messages,
+                        log_bytes_logged,
+                        log_reader_bytes_read,
+                        log_sync_latency_count,
+                        log_sync_latency_sum,
+                        log_append_latency_count,
+                        log_append_latency_sum,
+                        log_cache_disk_reads,
+                        rocksdb_flush_write_bytes,
+                        intentsdb_rocksdb_flush_write_bytes,
+                        rocksdb_compact_read_bytes,
+                        intentsdb_rocksdb_compact_read_bytes,
+                        rocksdb_compact_write_bytes,
+                        intentsdb_rocksdb_compact_write_bytes,
+                        rocksdb_write_raw_block_micros_count,
+                        rocksdb_write_raw_block_micros_sum,
+                        rocksdb_sst_read_micros_count,
+                        rocksdb_sst_read_micros_sum,
                     }
                 );
             }
