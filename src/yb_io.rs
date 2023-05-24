@@ -7,7 +7,7 @@ use plotters::prelude::*;
 use plotters::chart::SeriesLabelPosition::UpperLeft;
 
 //use crate::Statistic;
-use crate::{HistoricalData, Statistic};
+use crate::{CAPTION_STYLE_FONT, CAPTION_STYLE_FONT_SIZE, HistoricalData, LABEL_AREA_SIZE_BOTTOM, LABEL_AREA_SIZE_LEFT, LABEL_AREA_SIZE_RIGHT, LABELS_STYLE_FONT, LABELS_STYLE_FONT_SIZE, MESH_STYLE_FONT, MESH_STYLE_FONT_SIZE, Statistic};
 
 #[derive(Debug)]
 pub struct YbIoDetails {
@@ -31,6 +31,10 @@ pub struct YbIoDetails {
     pub rocksdb_write_raw_block_micros_sum: f64,
     pub rocksdb_sst_read_micros_count: f64,
     pub rocksdb_sst_read_micros_sum: f64,
+    pub intentsdb_rocksdb_block_cache_hit: f64,
+    pub intentsdb_rocksdb_block_cache_miss: f64,
+    pub rocksdb_block_cache_hit: f64,
+    pub rocksdb_block_cache_miss: f64,
 }
 
 pub fn process_statistic(
@@ -70,6 +74,10 @@ pub fn process_statistic(
                     }
                 );
         },
+        "intentsdb_rocksdb_block_cache_hit" |
+        "intentsdb_rocksdb_block_cache_miss" |
+        "rocksdb_block_cache_hit" |
+        "rocksdb_block_cache_miss" |
         "log_bytes_logged" |
         "log_reader_bytes_read" |
         "log_sync_latency_count" |
@@ -216,8 +224,8 @@ pub fn create_yb_io_plots(
     let unlocked_historical_data = historical_data.lock().unwrap();
     for filter_hostname in unlocked_historical_data.yb_io_details.keys().map(|(hostname, _)| hostname).unique()
     {
-        let number_of_areas = 3;
-        let y_size_of_root = 2100;
+        let number_of_areas = 4;
+        let y_size_of_root = 2800;
         let filename = format!("{}_yb_io.png", filter_hostname);
         let root = BitMapBackend::new(&filename, (1280, y_size_of_root)).into_drawing_area();
         let multiroot = root.split_evenly((number_of_areas, 1));
@@ -249,17 +257,17 @@ pub fn create_yb_io_plots(
             .unwrap();
         multiroot[0].fill(&WHITE).unwrap();
         let mut contextarea = ChartBuilder::on(&multiroot[0])
-            .set_label_area_size(LabelAreaPosition::Left, 60)
-            .set_label_area_size(LabelAreaPosition::Bottom, 50)
-            .set_label_area_size(LabelAreaPosition::Right, 60)
-            .caption(format!("Yugabyte IO MBPS: {}", filter_hostname), ("monospace", 30))
+            .set_label_area_size(LabelAreaPosition::Left, LABEL_AREA_SIZE_LEFT)
+            .set_label_area_size(LabelAreaPosition::Bottom, LABEL_AREA_SIZE_BOTTOM)
+            .set_label_area_size(LabelAreaPosition::Right, LABEL_AREA_SIZE_RIGHT)
+            .caption(format!("Yugabyte IO MBPS: {}", filter_hostname), (CAPTION_STYLE_FONT, CAPTION_STYLE_FONT_SIZE))
             .build_cartesian_2d(*start_time..*end_time, low_value_mbps..high_value_mbps)
             .unwrap();
         contextarea.configure_mesh()
             .x_labels(4)
             .x_label_formatter(&|x| x.to_rfc3339())
             .y_desc("MBPS")
-            .label_style(("monospace", 17))
+            .label_style((MESH_STYLE_FONT, MESH_STYLE_FONT_SIZE))
             .draw()
             .unwrap();
         let min_log_reader_bytes_read = unlocked_historical_data.yb_io_details
@@ -426,7 +434,7 @@ pub fn create_yb_io_plots(
         contextarea.configure_series_labels()
             .border_style(BLACK)
             .background_style(WHITE.mix(0.7))
-            .label_font(("monospace", 15))
+            .label_font((LABELS_STYLE_FONT, LABELS_STYLE_FONT_SIZE))
             .position(UpperLeft)
             .draw()
             .unwrap();
@@ -441,17 +449,17 @@ pub fn create_yb_io_plots(
             .unwrap();
         multiroot[1].fill(&WHITE).unwrap();
         let mut contextarea = ChartBuilder::on(&multiroot[1])
-            .set_label_area_size(LabelAreaPosition::Left, 60)
-            .set_label_area_size(LabelAreaPosition::Bottom, 50)
-            .set_label_area_size(LabelAreaPosition::Right, 60)
-            .caption(format!("Yugabyte IO IOPS: {}", filter_hostname), ("monospace", 30))
+            .set_label_area_size(LabelAreaPosition::Left, LABEL_AREA_SIZE_LEFT)
+            .set_label_area_size(LabelAreaPosition::Bottom, LABEL_AREA_SIZE_BOTTOM)
+            .set_label_area_size(LabelAreaPosition::Right, LABEL_AREA_SIZE_RIGHT)
+            .caption(format!("Yugabyte IO IOPS: {}", filter_hostname), (CAPTION_STYLE_FONT, CAPTION_STYLE_FONT_SIZE))
             .build_cartesian_2d(*start_time..*end_time, low_value_iops..high_value_iops)
             .unwrap();
         contextarea.configure_mesh()
             .x_labels(4)
             .x_label_formatter(&|x| x.to_rfc3339())
             .y_desc("IOPS")
-            .label_style(("monospace", 17))
+            .label_style((MESH_STYLE_FONT, MESH_STYLE_FONT_SIZE))
             .draw()
             .unwrap();
         let min_glog_info_messages = unlocked_historical_data.yb_io_details
@@ -598,7 +606,7 @@ pub fn create_yb_io_plots(
         contextarea.configure_series_labels()
             .border_style(BLACK)
             .background_style(WHITE.mix(0.7))
-            .label_font(("monospace", 15))
+            .label_font((LABELS_STYLE_FONT, LABELS_STYLE_FONT_SIZE))
             .position(UpperLeft)
             .draw()
             .unwrap();
@@ -636,17 +644,17 @@ pub fn create_yb_io_plots(
         let high_value_latency = max_latencies.iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
         multiroot[2].fill(&WHITE).unwrap();
         let mut contextarea = ChartBuilder::on(&multiroot[2])
-            .set_label_area_size(LabelAreaPosition::Left, 60)
-            .set_label_area_size(LabelAreaPosition::Bottom, 50)
-            .set_label_area_size(LabelAreaPosition::Right, 60)
-            .caption(format!("Yugabyte latency (ms): {}", filter_hostname), ("monospace", 30))
+            .set_label_area_size(LabelAreaPosition::Left, LABEL_AREA_SIZE_LEFT)
+            .set_label_area_size(LabelAreaPosition::Bottom, LABEL_AREA_SIZE_BOTTOM)
+            .set_label_area_size(LabelAreaPosition::Right, LABEL_AREA_SIZE_RIGHT)
+            .caption(format!("Yugabyte latency (ms): {}", filter_hostname), (CAPTION_STYLE_FONT, CAPTION_STYLE_FONT_SIZE))
             .build_cartesian_2d(*start_time..*end_time, low_value_latency..*high_value_latency)
             .unwrap();
         contextarea.configure_mesh()
             .x_labels(4)
             .x_label_formatter(&|x| x.to_rfc3339())
             .y_desc("latency (ms)")
-            .label_style(("monospace", 17))
+            .label_style((MESH_STYLE_FONT, MESH_STYLE_FONT_SIZE))
             .draw()
             .unwrap();
         let min_log_append_latency = unlocked_historical_data.yb_io_details
@@ -737,10 +745,121 @@ pub fn create_yb_io_plots(
         contextarea.configure_series_labels()
             .border_style(BLACK)
             .background_style(WHITE.mix(0.7))
-            .label_font(("monospace", 15))
+            .label_font((LABELS_STYLE_FONT, LABELS_STYLE_FONT_SIZE))
             .position(UpperLeft)
             .draw()
             .unwrap();
 
+        // Block cache hits
+        let low_value_block_cache = 0.;
+        let high_value_block_cache = unlocked_historical_data.yb_io_details
+            .iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname)
+            .map(|((_, _), row)| (row.intentsdb_rocksdb_block_cache_hit + row.intentsdb_rocksdb_block_cache_miss + row.rocksdb_block_cache_hit + row.rocksdb_block_cache_miss))
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        multiroot[3].fill(&WHITE).unwrap();
+        let mut contextarea = ChartBuilder::on(&multiroot[3])
+            .set_label_area_size(LabelAreaPosition::Left, LABEL_AREA_SIZE_LEFT)
+            .set_label_area_size(LabelAreaPosition::Bottom, LABEL_AREA_SIZE_BOTTOM)
+            .set_label_area_size(LabelAreaPosition::Right, LABEL_AREA_SIZE_RIGHT)
+            .caption(format!("Yugabyte block cache per second: {}", filter_hostname), (CAPTION_STYLE_FONT, CAPTION_STYLE_FONT_SIZE))
+            .build_cartesian_2d(*start_time..*end_time, low_value_block_cache..high_value_block_cache)
+            .unwrap();
+        contextarea.configure_mesh()
+            .x_labels(4)
+            .x_label_formatter(&|x| x.to_rfc3339())
+            .y_desc("cache actions per second")
+            .label_style((MESH_STYLE_FONT, MESH_STYLE_FONT_SIZE))
+            .draw()
+            .unwrap();
+        let min_intentsdb_rocksdb_block_cache_hit = unlocked_historical_data.yb_io_details
+            .iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname)
+            .map(|((_, _), row)| row.intentsdb_rocksdb_block_cache_hit)
+            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        let max_intentsdb_rocksdb_block_cache_hit = unlocked_historical_data.yb_io_details
+            .iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname)
+            .map(|((_, _), row)| row.intentsdb_rocksdb_block_cache_hit)
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        contextarea.draw_series(AreaSeries::new(unlocked_historical_data.yb_io_details.iter()
+                                                    .filter(|((hostname, _), _)| hostname == filter_hostname)
+                                                    .map(|((_, timestamp), row)| (*timestamp, (row.intentsdb_rocksdb_block_cache_hit + row.intentsdb_rocksdb_block_cache_miss + row.rocksdb_block_cache_hit + row.rocksdb_block_cache_miss))),
+                                                0.0, Palette99::pick(1))
+        )
+            .unwrap()
+            .label(format!("{:40} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "intentsdb rocksdb block cache hit", min_intentsdb_rocksdb_block_cache_hit, max_intentsdb_rocksdb_block_cache_hit, latest.intentsdb_rocksdb_block_cache_hit))
+            .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(1).filled()));
+
+        let min_intentsdb_rocksdb_block_cache_miss = unlocked_historical_data.yb_io_details
+            .iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname)
+            .map(|((_, _), row)| row.intentsdb_rocksdb_block_cache_miss)
+            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        let max_intentsdb_rocksdb_block_cache_miss = unlocked_historical_data.yb_io_details
+            .iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname)
+            .map(|((_, _), row)| row.intentsdb_rocksdb_block_cache_miss)
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        contextarea.draw_series(AreaSeries::new(unlocked_historical_data.yb_io_details.iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname)
+            .map(|((_, timestamp), row)| (*timestamp, (row.intentsdb_rocksdb_block_cache_miss + row.rocksdb_block_cache_hit + row.rocksdb_block_cache_miss))),
+                 0.0, Palette99::pick(2))
+        )
+                                    .unwrap()
+                                    .label(format!("{:40} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "intentsdb rocksdb block cache miss", min_intentsdb_rocksdb_block_cache_miss, max_intentsdb_rocksdb_block_cache_miss, latest.intentsdb_rocksdb_block_cache_miss))
+                                    .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(2).filled()));
+        let min_rocksdb_block_cache_hit = unlocked_historical_data.yb_io_details
+            .iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname)
+            .map(|((_, _), row)| row.rocksdb_block_cache_hit)
+            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        let max_rocksdb_block_cache_hit = unlocked_historical_data.yb_io_details
+            .iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname)
+            .map(|((_, _), row)| row.rocksdb_block_cache_hit)
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        contextarea.draw_series(AreaSeries::new(unlocked_historical_data.yb_io_details.iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname)
+            .map(|((_, timestamp), row)| (*timestamp, (row.rocksdb_block_cache_hit + row.rocksdb_block_cache_miss))),
+                 0.0, Palette99::pick(3))
+        )
+                                    .unwrap()
+                                    .label(format!("{:40} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "rocksdb block cache hit", min_rocksdb_block_cache_hit, max_rocksdb_block_cache_hit, latest.rocksdb_block_cache_hit))
+                                    .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(3).filled()));
+        let min_rocksdb_block_cache_miss = unlocked_historical_data.yb_io_details
+            .iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname)
+            .map(|((_, _), row)| row.rocksdb_block_cache_miss)
+            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        let max_rocksdb_block_cache_miss = unlocked_historical_data.yb_io_details
+            .iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname)
+            .map(|((_, _), row)| row.rocksdb_block_cache_miss)
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        contextarea.draw_series(AreaSeries::new(unlocked_historical_data.yb_io_details.iter()
+                                                    .filter(|((hostname, _), _)| hostname == filter_hostname)
+                                                    .map(|((_, timestamp), row)| (*timestamp, (row.rocksdb_block_cache_miss))),
+                                                0.0, Palette99::pick(4))
+        )
+            .unwrap()
+            .label(format!("{:40} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "rocksdb block cache miss", min_rocksdb_block_cache_miss, max_rocksdb_block_cache_miss, latest.rocksdb_block_cache_miss))
+            .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(4).filled()));
+        contextarea.configure_series_labels()
+            .border_style(BLACK)
+            .background_style(WHITE.mix(0.7))
+            .label_font((LABELS_STYLE_FONT, LABELS_STYLE_FONT_SIZE))
+            .position(UpperLeft)
+            .draw()
+            .unwrap();
     }
 }

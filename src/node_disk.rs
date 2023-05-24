@@ -5,7 +5,7 @@ use log::*;
 use plotters::prelude::*;
 use plotters::chart::SeriesLabelPosition::UpperLeft;
 
-use crate::{Statistic, HistoricalData};
+use crate::{Statistic, HistoricalData, LABELS_STYLE_FONT, LABELS_STYLE_FONT_SIZE, LABEL_AREA_SIZE_LEFT, LABEL_AREA_SIZE_BOTTOM, LABEL_AREA_SIZE_RIGHT, CAPTION_STYLE_FONT, CAPTION_STYLE_FONT_SIZE, MESH_STYLE_FONT, MESH_STYLE_FONT_SIZE};
 
 #[derive(Debug)]
 pub struct NodeDiskDetails {
@@ -357,17 +357,17 @@ pub fn create_disk_plots(
             // create the plot
             multiroot[0].fill(&WHITE).unwrap();
             let mut contextarea = ChartBuilder::on(&multiroot[0])
-                .set_label_area_size(LabelAreaPosition::Left, 60)
-                .set_label_area_size(LabelAreaPosition::Bottom, 50)
-                .set_label_area_size(LabelAreaPosition::Right, 60)
-                .caption(format!("Disk MBPS: {} {}", filter_hostname, current_device), ("monospace", 30))
+                .set_label_area_size(LabelAreaPosition::Left, LABEL_AREA_SIZE_LEFT)
+                .set_label_area_size(LabelAreaPosition::Bottom, LABEL_AREA_SIZE_BOTTOM)
+                .set_label_area_size(LabelAreaPosition::Right, LABEL_AREA_SIZE_RIGHT)
+                .caption(format!("Disk MBPS: {} {}", filter_hostname, current_device), (CAPTION_STYLE_FONT, CAPTION_STYLE_FONT_SIZE))
                 .build_cartesian_2d(*start_time..*end_time, low_value_mbps..high_value_mbps)
                 .unwrap();
             contextarea.configure_mesh()
                 .x_labels(4)
                 .x_label_formatter(&|x| x.to_rfc3339())
                 .y_desc("MBPS")
-                .label_style(("monospace", 17))
+                .label_style((MESH_STYLE_FONT, MESH_STYLE_FONT_SIZE))
                 .draw()
                 .unwrap();
             let min_reads_mbps = unlocked_historical_data.disk_details.iter()
@@ -409,7 +409,7 @@ pub fn create_disk_plots(
             contextarea.configure_series_labels()
                 .border_style(BLACK)
                 .background_style(WHITE.mix(0.7))
-                .label_font(("monospace", 15))
+                .label_font((LABELS_STYLE_FONT, LABELS_STYLE_FONT_SIZE))
                 .position(UpperLeft)
                 .draw()
                 .unwrap();
@@ -426,17 +426,17 @@ pub fn create_disk_plots(
             // create the plot
             multiroot[1].fill(&WHITE).unwrap();
             let mut contextarea = ChartBuilder::on(&multiroot[1])
-                .set_label_area_size(LabelAreaPosition::Left, 60)
-                .set_label_area_size(LabelAreaPosition::Bottom, 50)
-                .set_label_area_size(LabelAreaPosition::Right, 60)
-                .caption(format!("Disk IOPS: {} {}", filter_hostname, current_device), ("monospace", 30))
+                .set_label_area_size(LabelAreaPosition::Left, LABEL_AREA_SIZE_LEFT)
+                .set_label_area_size(LabelAreaPosition::Bottom, LABEL_AREA_SIZE_BOTTOM)
+                .set_label_area_size(LabelAreaPosition::Right, LABEL_AREA_SIZE_RIGHT)
+                .caption(format!("Disk IOPS: {} {}", filter_hostname, current_device), (CAPTION_STYLE_FONT, CAPTION_STYLE_FONT_SIZE))
                 .build_cartesian_2d(*start_time..*end_time, low_value_iops..high_value_iops)
                 .unwrap();
             contextarea.configure_mesh()
                 .x_labels(4)
                 .x_label_formatter(&|x| x.to_rfc3339())
                 .y_desc("IOPS")
-                .label_style(("monospace", 17))
+                .label_style((MESH_STYLE_FONT, MESH_STYLE_FONT_SIZE))
                 .draw()
                 .unwrap();
             let min_reads_iops = unlocked_historical_data.disk_details.iter()
@@ -478,7 +478,7 @@ pub fn create_disk_plots(
             contextarea.configure_series_labels()
                 .border_style(BLACK)
                 .background_style(WHITE.mix(0.7))
-                .label_font(("monospace", 15))
+                .label_font((LABELS_STYLE_FONT, LABELS_STYLE_FONT_SIZE))
                 .position(UpperLeft)
                 .draw()
                 .unwrap();
@@ -507,10 +507,10 @@ pub fn create_disk_plots(
             // create the plot
             multiroot[2].fill(&WHITE).unwrap();
             let mut contextarea = ChartBuilder::on(&multiroot[2])
-                .set_label_area_size(LabelAreaPosition::Left, 60)
-                .set_label_area_size(LabelAreaPosition::Bottom, 50)
-                .set_label_area_size(LabelAreaPosition::Right, 60)
-                .caption(format!("Latency and queue depth: {} {}", filter_hostname, current_device), ("monospace", 30))
+                .set_label_area_size(LabelAreaPosition::Left, LABEL_AREA_SIZE_LEFT)
+                .set_label_area_size(LabelAreaPosition::Bottom, LABEL_AREA_SIZE_BOTTOM)
+                .set_label_area_size(LabelAreaPosition::Right, LABEL_AREA_SIZE_RIGHT)
+                .caption(format!("Latency and queue depth: {} {}", filter_hostname, current_device), (CAPTION_STYLE_FONT, CAPTION_STYLE_FONT_SIZE))
                 .build_cartesian_2d(*start_time..*end_time, low_value_latencies..high_value_latencies)
                 .unwrap()
                 .set_secondary_coord(*start_time..*end_time, low_value_queue_depth..high_value_queue_depth);
@@ -518,12 +518,12 @@ pub fn create_disk_plots(
                 .x_labels(4)
                 .x_label_formatter(&|x| x.to_rfc3339())
                 .y_desc("Average latency ms")
-                .label_style(("monospace", 17))
+                .label_style((MESH_STYLE_FONT, MESH_STYLE_FONT_SIZE))
                 .draw()
                 .unwrap();
             contextarea.configure_secondary_axes()
                 .y_desc("queue depth")
-                .label_style(("monospace", 17))
+                .label_style((MESH_STYLE_FONT, MESH_STYLE_FONT_SIZE))
                 .draw()
                 .unwrap();
             let min_read_latency = unlocked_historical_data.disk_details.iter()
@@ -583,7 +583,7 @@ pub fn create_disk_plots(
             contextarea.configure_series_labels()
                 .border_style(BLACK)
                 .background_style(WHITE.mix(0.7))
-                .label_font(("monospace", 15))
+                .label_font((LABELS_STYLE_FONT, LABELS_STYLE_FONT_SIZE))
                 .position(UpperLeft)
                 .draw()
                 .unwrap();
@@ -602,17 +602,17 @@ pub fn create_disk_plots(
                 // create the plot
                 multiroot[3].fill(&WHITE).unwrap();
                 let mut contextarea = ChartBuilder::on(&multiroot[3])
-                    .set_label_area_size(LabelAreaPosition::Left, 60)
-                    .set_label_area_size(LabelAreaPosition::Bottom, 50)
-                    .set_label_area_size(LabelAreaPosition::Right, 60)
-                    .caption(format!("XFS IOPS: {} {}", filter_hostname, current_device), ("monospace", 30))
+                    .set_label_area_size(LabelAreaPosition::Left, LABEL_AREA_SIZE_LEFT)
+                    .set_label_area_size(LabelAreaPosition::Bottom, LABEL_AREA_SIZE_BOTTOM)
+                    .set_label_area_size(LabelAreaPosition::Right, LABEL_AREA_SIZE_RIGHT)
+                    .caption(format!("XFS IOPS: {} {}", filter_hostname, current_device), (CAPTION_STYLE_FONT, CAPTION_STYLE_FONT_SIZE))
                     .build_cartesian_2d(*start_time..*end_time, low_value_xfs_iops..high_value_xfs_iops)
                     .unwrap();
                 contextarea.configure_mesh()
                     .x_labels(4)
                     .x_label_formatter(&|x| x.to_rfc3339())
                     .y_desc("IOPS")
-                    .label_style(("monospace", 17))
+                    .label_style((MESH_STYLE_FONT, MESH_STYLE_FONT_SIZE))
                     .draw()
                     .unwrap();
                 let min_xfs_read_iops = unlocked_historical_data.disk_details.iter()
@@ -625,11 +625,10 @@ pub fn create_disk_plots(
                     .map(|((_, _, _), row)| row.xfs_read_calls_s)
                     .max_by(|a, b| a.partial_cmp(b).unwrap())
                     .unwrap();
-                contextarea.draw_series(LineSeries::new(unlocked_historical_data.disk_details.iter()
+                contextarea.draw_series(AreaSeries::new(unlocked_historical_data.disk_details.iter()
                                                             .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
                                                             .map(|((_, timestamp, _), row)| (*timestamp, row.xfs_read_calls_s + row.xfs_write_calls_s)),
-                                                        Palette99::pick(1))
-                )
+                                                        0.0, Palette99::pick(1)) )
                     .unwrap()
                     .label(format!("{:25} min: {:10.2}, max: {:10.2}", "XFS read IOPS", min_xfs_read_iops, max_xfs_read_iops))
                     .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(1).filled()));
@@ -643,10 +642,10 @@ pub fn create_disk_plots(
                     .map(|((_, _, _), row)| row.xfs_write_calls_s)
                     .max_by(|a, b| a.partial_cmp(b).unwrap())
                     .unwrap();
-                contextarea.draw_series(LineSeries::new(unlocked_historical_data.disk_details.iter()
+                contextarea.draw_series(AreaSeries::new(unlocked_historical_data.disk_details.iter()
                                                             .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
                                                             .map(|((_, timestamp, _), row)| (*timestamp, row.xfs_write_calls_s)),
-                                                        Palette99::pick(2))
+                                                        0.0, Palette99::pick(2))
                 )
                     .unwrap()
                     .label(format!("{:25} min: {:10.2}, max: {:10.2}", "XFS write IOPS", min_xfs_write_iops, max_xfs_write_iops))
@@ -654,7 +653,7 @@ pub fn create_disk_plots(
                 contextarea.configure_series_labels()
                     .border_style(BLACK)
                     .background_style(WHITE.mix(0.7))
-                    .label_font(("monospace", 15))
+                    .label_font((LABELS_STYLE_FONT, LABELS_STYLE_FONT_SIZE))
                     .position(UpperLeft)
                     .draw()
                     .unwrap();

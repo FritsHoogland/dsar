@@ -4,9 +4,8 @@ use itertools::Itertools;
 use log::*;
 use plotters::prelude::*;
 use plotters::chart::SeriesLabelPosition::UpperLeft;
-//use chrono::{DateTime, Utc};
 
-use crate::{Statistic, HistoricalData};
+use crate::{Statistic, HistoricalData, CAPTION_STYLE_FONT, CAPTION_STYLE_FONT_SIZE, MESH_STYLE_FONT_SIZE, LABELS_STYLE_FONT, LABELS_STYLE_FONT_SIZE, LABEL_AREA_SIZE_LEFT, LABEL_AREA_SIZE_BOTTOM, LABEL_AREA_SIZE_RIGHT, MESH_STYLE_FONT};
 
 #[derive(Debug)]
 pub struct NodeCpuDetails {
@@ -290,17 +289,17 @@ pub fn create_cpu_plots(
         let root = BitMapBackend::new(&filename, (1280,900)).into_drawing_area();
         root.fill(&WHITE).unwrap();
         let mut contextarea = ChartBuilder::on(&root)
-            .set_label_area_size(LabelAreaPosition::Left, 60)
-            .set_label_area_size(LabelAreaPosition::Bottom, 50)
-            .set_label_area_size(LabelAreaPosition::Right, 60)
-            .caption(format!("CPU usage: {}",filter_hostname), ("monospace", 30))
+            .set_label_area_size(LabelAreaPosition::Left, LABEL_AREA_SIZE_LEFT)
+            .set_label_area_size(LabelAreaPosition::Bottom, LABEL_AREA_SIZE_BOTTOM)
+            .set_label_area_size(LabelAreaPosition::Right, LABEL_AREA_SIZE_RIGHT)
+            .caption(format!("CPU usage: {}",filter_hostname), (CAPTION_STYLE_FONT, CAPTION_STYLE_FONT_SIZE))
             .build_cartesian_2d(*start_time..*end_time, low_value..high_value)
             .unwrap();
         contextarea.configure_mesh()
             .x_labels(4)
             .x_label_formatter(&|x| x.to_rfc3339())
             .y_desc("CPU per second")
-            .label_style(("monospace", 17))
+            .label_style((MESH_STYLE_FONT, MESH_STYLE_FONT_SIZE))
             .draw()
             .unwrap();
         let min_scheduler_wait = unlocked_historical_data.cpu_details.iter()
@@ -494,7 +493,7 @@ pub fn create_cpu_plots(
         contextarea.configure_series_labels()
             .border_style(BLACK)
             .background_style(WHITE.mix(0.7))
-            .label_font(("monospace", 15))
+            .label_font((LABELS_STYLE_FONT, LABELS_STYLE_FONT_SIZE))
             .position(UpperLeft)
             .draw()
             .unwrap();

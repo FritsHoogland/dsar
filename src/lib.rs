@@ -24,6 +24,16 @@ pub mod yb_network;
 pub mod yb_memory;
 pub mod yb_io;
 
+static LABEL_AREA_SIZE_LEFT: i32 = 100;
+static LABEL_AREA_SIZE_RIGHT: i32 = 100;
+static LABEL_AREA_SIZE_BOTTOM: i32 = 50;
+static CAPTION_STYLE_FONT: &str = "monospace";
+static CAPTION_STYLE_FONT_SIZE: i32 = 30;
+static MESH_STYLE_FONT: &str = "monospace";
+static MESH_STYLE_FONT_SIZE: i32 = 17;
+static LABELS_STYLE_FONT: &str = "monospace";
+static LABELS_STYLE_FONT_SIZE: i32 = 15;
+
 #[derive(Debug, Default)]
 pub struct Statistic {
     pub last_value: f64,
@@ -360,6 +370,10 @@ impl HistoricalData {
                 let rocksdb_write_raw_block_micros_sum = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "rocksdb_write_raw_block_micros_sum" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
                 let rocksdb_sst_read_micros_count = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "rocksdb_sst_read_micros_count" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
                 let rocksdb_sst_read_micros_sum = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "rocksdb_sst_read_micros_sum" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                let intentsdb_rocksdb_block_cache_hit = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "intentsdb_rocksdb_block_cache_hit" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                let intentsdb_rocksdb_block_cache_miss = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "intentsdb_rocksdb_block_cache_miss" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                let rocksdb_block_cache_hit = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "rocksdb_block_cache_hit" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+                let rocksdb_block_cache_miss = statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && metric == "rocksdb_block_cache_miss" && statistic.last_timestamp == guaranteed_last_timestamp).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
                 self.yb_io_details.entry((hostname.to_string(), guaranteed_last_timestamp)).or_insert(
                     YbIoDetails {
                         glog_info_messages,
@@ -382,6 +396,10 @@ impl HistoricalData {
                         rocksdb_write_raw_block_micros_sum,
                         rocksdb_sst_read_micros_count,
                         rocksdb_sst_read_micros_sum,
+                        intentsdb_rocksdb_block_cache_hit,
+                        intentsdb_rocksdb_block_cache_miss,
+                        rocksdb_block_cache_hit,
+                        rocksdb_block_cache_miss,
                     }
                 );
             }
@@ -631,6 +649,10 @@ pub async fn process_statistics(
                 "mem_tracker_Tablets" |
                 "mem_tracker_Tablets_transactions" => yb_memory::process_statistic(sample, hostname, statistics),
 
+                "intentsdb_rocksdb_block_cache_hit" |
+                "intentsdb_rocksdb_block_cache_miss" |
+                "rocksdb_block_cache_hit" |
+                "rocksdb_block_cache_miss" |
                 "glog_info_messages" |
                 "glog_warning_message" |
                 "glog_error_messages" |
