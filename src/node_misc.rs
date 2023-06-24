@@ -13,6 +13,11 @@ pub fn process_statistic(
 {
     match sample.metric.as_str()
     {
+        "node_pressure_cpu_waiting_seconds_total" |
+        "node_pressure_io_stalled_seconds_total" |
+        "node_pressure_io_waiting_seconds_total" |
+        "node_pressure_memory_stalled_seconds_total" |
+        "node_pressure_memory_waiting_seconds_total" |
         "node_intr_total" |
         "node_context_switches_total" => {
             let Value::Counter(value) = sample.value else { panic!("{} value enum type should be Counter!", sample.metric)};
@@ -115,5 +120,45 @@ pub fn print_sar_q_header()
     );
 }
 
+pub fn print_psi(
+    statistics: &BTreeMap<(String, String, String, String), Statistic>,
+)
+{
+    for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
+    {
+        if statistics.iter().any(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_cpu_waiting_seconds_total")
+        {
+            let node_pressure_cpu_waiting_seconds_total = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_cpu_waiting_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+            let node_pressure_io_stalled_seconds_total = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_io_stalled_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+            let node_pressure_io_waiting_seconds_total = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_io_waiting_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+            let node_pressure_memory_stalled_seconds_total = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_memory_stalled_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+            let node_pressure_memory_waiting_seconds_total = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_memory_waiting_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+
+            let time = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_cpu_waiting_seconds_total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
+            println!("{:30} {:8} {:10.3} {:10.3} {:10.3} {:10.3} {:10.3}",
+                     hostname,
+                     time.format("%H:%M:%S"),
+                     node_pressure_cpu_waiting_seconds_total,
+                     node_pressure_io_stalled_seconds_total,
+                     node_pressure_io_waiting_seconds_total,
+                     node_pressure_memory_stalled_seconds_total,
+                     node_pressure_memory_waiting_seconds_total,
+            );
+        }
+    }
+}
+
+pub fn print_psi_header()
+{
+    println!("{:30} {:8} {:>10} {:>10} {:>10} {:>10} {:>10}",
+             "hostname",
+             "time",
+             "some cpu",
+             "some io",
+             "full io",
+             "some mem",
+             "full mem",
+    );
+}
 
 

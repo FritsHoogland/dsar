@@ -602,6 +602,11 @@ pub async fn process_statistics(
                 "node_load1" |
                 "node_load5" |
                 "node_load15" |
+                "node_pressure_cpu_waiting_seconds_total" |
+                "node_pressure_io_stalled_seconds_total" |
+                "node_pressure_io_waiting_seconds_total" |
+                "node_pressure_memory_stalled_seconds_total" |
+                "node_pressure_memory_waiting_seconds_total" |
                 "node_intr_total" |
                 "node_context_switches_total" => node_misc::process_statistic(sample, hostname, statistics),
 
