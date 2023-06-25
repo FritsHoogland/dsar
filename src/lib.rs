@@ -12,6 +12,7 @@ use crate::node_disk::NodeDiskDetails;
 use crate::node_memory::NodeMemoryDetails;
 use crate::yb_memory::YbMemoryDetails;
 use crate::yb_io::YbIoDetails;
+use crate::node_misc::NodeMiscDetails;
 
 pub mod node_cpu;
 pub mod node_disk;
@@ -50,6 +51,7 @@ pub struct HistoricalData {
     pub memory_details: BTreeMap<(String, DateTime<Utc>), NodeMemoryDetails>,
     pub yb_memory_details: BTreeMap<(String, DateTime<Utc>), YbMemoryDetails>,
     pub yb_io_details: BTreeMap<(String, DateTime<Utc>), YbIoDetails>,
+    pub misc_details: BTreeMap<(String, DateTime<Utc>), NodeMiscDetails>,
 }
 
 impl HistoricalData {
@@ -66,6 +68,7 @@ impl HistoricalData {
         self.add_node_memory_statistics(statistics);
         self.add_yb_memory_statistics(statistics);
         self.add_yb_io_statistics(statistics);
+        self.add_node_misc_statistics(statistics);
     }
     pub fn add_node_cpu_statistics(
         &mut self,
@@ -400,6 +403,33 @@ impl HistoricalData {
                         intentsdb_rocksdb_block_cache_miss,
                         rocksdb_block_cache_hit,
                         rocksdb_block_cache_miss,
+                    }
+                );
+            }
+        }
+    }
+    pub fn add_node_misc_statistics(
+        &mut self,
+        statistics: &BTreeMap<(String, String, String, String), Statistic>,
+    )
+    {
+        for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
+        {
+            if statistics.iter().any(|((host, metric, _, _), row)| host == hostname && metric == "node_pressure_cpu_waiting_seconds_total" && !row.first_value )
+            {
+                let timestamp = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_cpu_waiting_seconds_total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
+                let some_cpu = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_cpu_waiting_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let some_io = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_io_waiting_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let full_io = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_io_stalled_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let some_mem = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_memory_waiting_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let full_mem = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_memory_stalled_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                self.misc_details.entry((hostname.to_string(), timestamp)).or_insert(
+                    NodeMiscDetails {
+                        some_cpu,
+                        some_io,
+                        full_io,
+                        some_mem,
+                        full_mem,
                     }
                 );
             }
