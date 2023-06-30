@@ -52,7 +52,17 @@ pub fn process_statistic(
         "glog_info_messages" |
         "glog_warning_message" |
         "glog_error_messages" => {
-            let Value::Untyped(value) = sample.value else { panic!("{} value enum type should be Untyped!", sample.metric)};
+            let value = match sample.value
+            {
+                // Value::Untyped is the old YugabyteDB prometheus-metrics type
+                Value::Untyped(value) => value,
+                // Value::Counter is the new YugabyteDB prometheus-metrics type
+                Value::Counter(value) => value,
+                _ => {
+                    panic!("{} value enum type should be Untyped or Counter!", sample.metric);
+                },
+            };
+            //let Value::Untyped(value) = sample.value else { panic!("{} value enum type should be Untyped!", sample.metric)};
             let metric_type = sample.labels.iter().find(|(label, _)| *label == "metric_type").map(|(_, value)| value).unwrap();
             statistics
                 .entry(( hostname.to_string(), sample.metric.clone(), metric_type.to_string(), "".to_string() ))
@@ -95,7 +105,17 @@ pub fn process_statistic(
         "rocksdb_write_raw_block_micros_sum" |
         "rocksdb_sst_read_micros_count" |
         "rocksdb_sst_read_micros_sum" => {
-            let Value::Untyped(value) = sample.value else { panic!("{} value enum type should be Untyped!", sample.metric)};
+            let value = match sample.value
+            {
+                // Value::Untyped is the old YugabyteDB prometheus-metrics type
+                Value::Untyped(value) => value,
+                // Value::Counter is the new YugabyteDB prometheus-metrics type
+                Value::Counter(value) => value,
+                _ => {
+                    panic!("{} value enum type should be Untyped or Counter!", sample.metric);
+                },
+            };
+            //let Value::Untyped(value) = sample.value else { panic!("{} value enum type should be Untyped!", sample.metric)};
             let metric_type = sample.labels.iter().find(|(label, _)| *label == "metric_type").map(|(_, value)| value).unwrap();
             let table_id = sample.labels.iter().find(|(label, _)| *label == "table_id").map(|(_, value)| value).unwrap();
             statistics

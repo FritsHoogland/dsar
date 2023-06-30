@@ -11,7 +11,17 @@ pub fn process_statistic(
     statistics: &mut BTreeMap<(String, String, String, String), Statistic>,
 )
 {
-    let Value::Untyped(value) = sample.value else { panic!("{} value enum type should be Untyped!", sample.metric)};
+    let value = match sample.value
+    {
+        // Value::Untyped is the old YugabyteDB prometheus-metrics type
+        Value::Untyped(value) => value,
+        // Value::Counter is the new YugabyteDB prometheus-metrics type
+        Value::Counter(value) => value,
+        _ => {
+            panic!("{} value enum type should be Untyped or Counter!", sample.metric);
+        },
+    };
+    //let Value::Untyped(value) = sample.value else { panic!("{} value enum type should be Untyped!", sample.metric)};
     let metric_type = sample.labels.iter().find(|(label, _)| *label == "metric_type").map(|(_, value)| value).unwrap();
     statistics
         .entry((
