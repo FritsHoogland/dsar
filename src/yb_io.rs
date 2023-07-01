@@ -111,6 +111,10 @@ pub fn process_statistic(
                 Value::Untyped(value) => value,
                 // Value::Counter is the new YugabyteDB prometheus-metrics type
                 Value::Counter(value) => value,
+                // Value::Gauge is wrong, but allows this to be usable.
+                // See: [DocDB] All rocksdb_block_cache prometheus statistics are wrongly annotated as gauges, should be counters
+                // (https://github.com/yugabyte/yugabyte-db/issues/18040)
+                Value::Gauge(value) => value,
                 _ => {
                     panic!("{} value enum type should be Untyped or Counter!", sample.metric);
                 },
