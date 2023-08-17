@@ -101,7 +101,7 @@ pub fn print_sar_q(
             let node_load_1 = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_load1").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
             let node_load_5 = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_load5").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
             let node_load_15 = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_load15").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
-            let node_procs_blocked = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_procs_blocked").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+            let node_procs_blocked = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_procs_blocked").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default();
             let time = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_load1").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
             println!("{:30} {:8} {:10.0} {:10.0} {:10.2} {:10.2} {:10.2} {:10.0}",
                      hostname,

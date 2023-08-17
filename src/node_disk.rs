@@ -110,7 +110,8 @@ pub fn print_sar_d(
                 average_read_request_size = if average_read_request_size.is_nan() { 0. } else { average_read_request_size };
                 let mut average_write_request_size = write_bytes / writes_completed;
                 average_write_request_size = if average_write_request_size.is_nan() { 0. } else { average_write_request_size };
-                let queue_size = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_io_time_weighted_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                // node_disk_io_time_weighted does not exist for Mac.
+                let queue_size = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_io_time_weighted_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
                 let read_time = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_read_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
                 let write_time = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_write_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
                 let mut average_read_request_time_ms = (read_time * 1000.) / reads_completed;
@@ -246,11 +247,14 @@ pub fn print_iostat_x(
                 let writes_completed = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_writes_completed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
                 let read_bytes = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_read_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
                 let write_bytes = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_written_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
-                let reads_merged = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_merged_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
-                let writes_merged = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_writes_merged_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                // node_disk_reads_merged does not exist for Mac.
+                let reads_merged = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_reads_merged_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
+                // node_disk_writes_merged does not exist for Mac.
+                let writes_merged = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_writes_merged_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
                 let read_time = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_read_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
                 let write_time = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_write_time_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
-                let queue = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_io_time_weighted_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                // node_disk_io_time_weighted does not exist for Mac.
+                let queue = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_disk_io_time_weighted_seconds_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
                 let mut read_percentage_merged = reads_merged / (reads_merged + reads_completed) * 100.;
                 read_percentage_merged = if read_percentage_merged.is_nan() { 0. } else { read_percentage_merged };
                 let mut write_percentage_merged = writes_merged / (writes_merged + writes_completed) * 100.;
