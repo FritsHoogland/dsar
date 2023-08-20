@@ -1,7 +1,7 @@
 # README for dsar
 
 dsar is a commandline utility that collects statistics from prometheus format endpoints. 
-Currently it will store statistics from node_exporter and from the YugabyteDB server processes (tablet servers and masters). 
+Currently it will store statistics from node_exporter and from the YugabyteDB server processes (tablet servers and masters) in memory for the sake of being able to potentially graph them over time (see below graph). 
 
 The prometheus data from multiple machines and multiple endpoints is read, 
 after which it will pick all statistics that are currently set to be stored, and stores these for each interval.
