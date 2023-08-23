@@ -1,18 +1,17 @@
-# README for dsar
+# dsar
 
 dsar is a commandline utility that collects statistics from prometheus format endpoints. 
-Currently it will store statistics from node_exporter and from the YugabyteDB server processes (tablet servers and masters) in memory for the sake of being able to potentially graph them over time (see below graph). 
+Currently it can recognise statistics from node_exporter and from the YugabyteDB server processes (tablet servers and masters).
+dsar prints the statistics it is set to print (default output in the format of `sar -u`).
+dsar stores a selection of the statistics, which it can use to plot the details of the selected statistics if it's set to create them (`-g`).
 
-The prometheus data from multiple machines and multiple endpoints is read, 
-after which it will pick all statistics that are currently set to be stored, and stores these for each interval.
-
-Therefore the minimal requirement to run dsar is to specify one or more hostnames or ip addresses.
+By default dsar will use "localhost" and port number 9100, the default node_exporter port.
 
 The output by default is identical to the sar utility (sar on recent linux versions):
 
 ```shell
+$ dsar
 hostname                       time     CPU      %usr     %nice      %sys   %iowait    %steal     %idle
-localhost:9100:metrics         13:41:04 all       NaN       NaN       NaN       NaN       NaN       NaN
 localhost:9100:metrics         13:41:05 all     25.66      0.00      8.05      0.00      0.00     66.29
 localhost:9100:metrics         13:41:06 all     24.56      0.00      8.40      0.00      0.00     67.04
 localhost:9100:metrics         13:41:07 all     25.13      0.00      7.29      0.00      0.00     67.59
@@ -50,15 +49,18 @@ Outside of the simple CPU percentages, it can show multiple sar and other utilit
 - yb-mem: memory statistics by the YugabyteDB tablet server and master processes, excludes the postgres layer.
 - psi: pressure stall information: some cpu, some io, full io, some mem, full mem.
 
-If the `-g` or `--graph` switch is added, dsar will create graphical plots of the performance metrics:
+If the `-g` or `--graph` switch is added, dsar will create graphical plots of some metrics:
+
+# CPU
 ![CPU](doc/localhost:9100:metrics_cpu.png)
-
-The graphs are limited to a few sources:
-- linux CPU
-- linux disk IO
-- linux memory
-- linux PSI
-- YugabyteDB memory
-- YugabyteDB disk IO
-
-
+# Memory
+![memory](doc/localhost:9100:metrics_memory.png)
+# Disk
+![disk](doc/localhost:9100:metrics_disk_total.png)
+# Network
+![network](doc/localhost:9100:metrics_network_total.png)
+----
+# YugabyteDB IO
+![ybio](doc/localhost:9000:prometheus-metrics_yb_io.png)
+# YugabyteDB memory
+![ybmemory](doc/localhost:9000:prometheus-metrics_yb_memory.png)

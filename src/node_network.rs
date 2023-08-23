@@ -543,11 +543,17 @@ pub fn create_network_plots(
                 .set_label_area_size(LabelAreaPosition::Right, LABEL_AREA_SIZE_RIGHT)
                 .caption(format!("network megabit per second: {} {}", filter_hostname, current_device), (CAPTION_STYLE_FONT, CAPTION_STYLE_FONT_SIZE))
                 .build_cartesian_2d(*start_time..*end_time, low_value_mbit_second..high_value_mbit_second)
-                .unwrap();
+                .unwrap()
+                .set_secondary_coord(*start_time..*end_time, low_value_mbit_second..(high_value_mbit_second/8.));
             contextarea.configure_mesh()
                 .x_labels(4)
                 .x_label_formatter(&|x| x.to_rfc3339())
                 .y_desc("megabit per second")
+                .label_style((MESH_STYLE_FONT, MESH_STYLE_FONT_SIZE))
+                .draw()
+                .unwrap();
+            contextarea.configure_secondary_axes()
+                .y_desc("megabyte per second")
                 .label_style((MESH_STYLE_FONT, MESH_STYLE_FONT_SIZE))
                 .draw()
                 .unwrap();
@@ -585,6 +591,15 @@ pub fn create_network_plots(
                 .unwrap()
                 .label(format!("{:25} min: {:10.2}, max: {:10.2}", "Transmit mbit/s", min_transmit_mbit_s, max_transmit_mbit_s))
                 .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(2).filled()));
+            /*
+            contextarea.draw_secondary_series(AreaSeries::new(unlocked_historical_data.network_details.iter()
+                                                        .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                                                        .map(|((_, timestamp, _), row)| (*timestamp, (row.receive_bytes + row.transmit_bytes) / (1024.*1024.) )), 0.0, TRANSPARENT)
+            )
+                .unwrap()
+                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(1).filled()));
+
+             */
             contextarea.configure_series_labels()
                 .border_style(BLACK)
                 .background_style(WHITE.mix(0.7))

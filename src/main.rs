@@ -67,10 +67,10 @@ enum OutputOptions
 pub struct Opts
 {
     /// Hostnames
-    #[arg(short = 'H', long, value_name = "hostname,hostname")]
+    #[arg(short = 'H', long, value_name = "hostname,hostname", default_value = "localhost")]
     hosts: String,
     /// Ports
-    #[arg(short = 'P', long, value_name = "port,port", default_value = "9000,9300")]
+    #[arg(short = 'P', long, value_name = "port,port", default_value = "9100")]
     ports: String,
     /// Interval
     #[arg(short = 'i', long, value_name = "time (s)", default_value = "1")]
