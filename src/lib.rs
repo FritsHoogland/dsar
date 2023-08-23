@@ -9,6 +9,7 @@ use itertools::Itertools;
 
 use crate::node_cpu::NodeCpuDetails;
 use crate::node_disk::NodeDiskDetails;
+use crate::node_network::NodeNetworkDetails;
 use crate::node_memory::NodeMemoryDetails;
 use crate::yb_memory::YbMemoryDetails;
 use crate::yb_io::YbIoDetails;
@@ -48,6 +49,7 @@ pub struct Statistic {
 pub struct HistoricalData {
     pub cpu_details: BTreeMap<(String, DateTime<Utc>), NodeCpuDetails>,
     pub disk_details: BTreeMap<(String, DateTime<Utc>, String), NodeDiskDetails>,
+    pub network_details: BTreeMap<(String, DateTime<Utc>, String), NodeNetworkDetails>,
     pub memory_details: BTreeMap<(String, DateTime<Utc>), NodeMemoryDetails>,
     pub yb_memory_details: BTreeMap<(String, DateTime<Utc>), YbMemoryDetails>,
     pub yb_io_details: BTreeMap<(String, DateTime<Utc>), YbIoDetails>,
@@ -65,6 +67,7 @@ impl HistoricalData {
     {
         self.add_node_cpu_statistics(statistics);
         self.add_node_disk_statistics(statistics);
+        self.add_node_network_statistics(statistics);
         self.add_node_memory_statistics(statistics);
         self.add_yb_memory_statistics(statistics);
         self.add_yb_io_statistics(statistics);
@@ -116,6 +119,86 @@ impl HistoricalData {
                         schedstat_wait,
                     }
                 );
+            }
+        }
+    }
+    pub fn add_node_network_statistics(
+        &mut self,
+        statistics: &BTreeMap<(String, String, String, String), Statistic>,
+    )
+    {
+        for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
+        {
+            if statistics.iter().any(|((host, metric, _, _), row)| host == hostname && metric == "node_network_receive_packets_total" && !row.first_value )
+            {
+                for current_device in statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_network_receive_packets_total").map(|((_, _, device, _), _)| device)
+                {
+                    let timestamp = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_network_receive_packets_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
+
+                    let receive_packets = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_network_receive_packets_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                    let transmit_packets = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_network_transmit_packets_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                    let receive_bytes = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_network_receive_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                    let transmit_bytes = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_network_transmit_bytes_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                    let receive_compressed = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_network_receive_compressed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                    let transmit_compressed = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_network_transmit_compressed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                    let receive_multicast = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_network_receive_multicast_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                    let receive_errs = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_network_receive_errs_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                    let transmit_errs = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_network_transmit_errs_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                    let transmit_colls = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_network_transmit_colls_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                    let receive_drop = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_network_receive_drop_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                    let transmit_drop = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_network_transmit_drop_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                    let transmit_carrier = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_network_transmit_carrier_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                    let receive_fifo = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_network_receive_fifo_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                    let transmit_fifo = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_network_transmit_fifo_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+
+                    let sockstat_sockets = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_sockstat_sockets_used" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default();
+                    let sockstat_tcp_inuse = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_sockstat_TCP_inuse" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default();
+                    let sockstat_udp_inuse = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_sockstat_UDP_inuse" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default();
+                    let sockstat_raw_inuse = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_sockstat_RAW_inuse" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default();
+                    let sockstat_frag_inuse = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_sockstat_FRAG_inuse" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default();
+                    let sockstat_tcp_tw = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_sockstat_TCP_tw" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default();
+                    let sockstat_tcp6_inuse = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_sockstat_TCP6_inuse" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default();
+                    let sockstat_udp6_inuse = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_sockstat_UDP6_inuse" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default();
+                    let sockstat_raw6_inuse = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_sockstat_RAW6_inuse" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default();
+                    let sockstat_frag6_inuse = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_sockstat_FRAG6_inuse" && device == current_device).map(|((_, _, _, _), statistic)| statistic.last_value).unwrap_or_default();
+
+                    let softnet_dropped = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_softnet_dropped_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
+                    let softnet_processed = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_softnet_processed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
+                    let softnet_times_squeezed = statistics.iter().find(|((host, metric, device, _), _)| host == hostname && metric == "node_sockstat_times_squeezed_total" && device == current_device).map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
+
+                    self.network_details.entry((hostname.to_string(), timestamp, current_device.to_string())).or_insert(
+                        NodeNetworkDetails {
+                            receive_packets,
+                            transmit_packets,
+                            receive_bytes,
+                            transmit_bytes,
+                            receive_compressed,
+                            transmit_compressed,
+                            receive_multicast,
+                            receive_errs,
+                            transmit_errs,
+                            transmit_colls,
+                            receive_drop,
+                            transmit_drop,
+                            transmit_carrier,
+                            receive_fifo,
+                            transmit_fifo,
+                            sockstat_sockets,
+                            sockstat_tcp_inuse,
+                            sockstat_udp_inuse,
+                            sockstat_raw_inuse,
+                            sockstat_frag_inuse,
+                            sockstat_tcp_tw,
+                            sockstat_tcp6_inuse,
+                            sockstat_udp6_inuse,
+                            sockstat_raw6_inuse,
+                            sockstat_frag6_inuse,
+                            softnet_dropped,
+                            softnet_processed,
+                            softnet_times_squeezed,
+                        }
+                    );
+                }
             }
         }
     }

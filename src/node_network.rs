@@ -1,10 +1,43 @@
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::{Arc, Mutex}};
 use prometheus_parse::{Value, Sample};
 use itertools::Itertools;
 use log::*;
+use plotters::prelude::*;
+use plotters::chart::SeriesLabelPosition::UpperLeft;
 
-use crate::Statistic;
+use crate::{Statistic, HistoricalData, LABELS_STYLE_FONT, LABELS_STYLE_FONT_SIZE, LABEL_AREA_SIZE_LEFT, LABEL_AREA_SIZE_BOTTOM, LABEL_AREA_SIZE_RIGHT, CAPTION_STYLE_FONT, CAPTION_STYLE_FONT_SIZE, MESH_STYLE_FONT, MESH_STYLE_FONT_SIZE};
 
+#[derive(Debug)]
+pub struct NodeNetworkDetails {
+    pub receive_packets: f64,
+    pub transmit_packets: f64,
+    pub receive_bytes: f64,
+    pub transmit_bytes: f64,
+    pub receive_compressed: f64,
+    pub transmit_compressed: f64,
+    pub receive_multicast: f64,
+    pub receive_errs: f64,
+    pub transmit_errs: f64,
+    pub transmit_colls: f64,
+    pub receive_drop: f64,
+    pub transmit_drop: f64,
+    pub transmit_carrier: f64,
+    pub receive_fifo: f64,
+    pub transmit_fifo: f64,
+    pub sockstat_sockets: f64,
+    pub sockstat_tcp_inuse: f64,
+    pub sockstat_udp_inuse: f64,
+    pub sockstat_raw_inuse: f64,
+    pub sockstat_frag_inuse: f64,
+    pub sockstat_tcp_tw: f64,
+    pub sockstat_tcp6_inuse: f64,
+    pub sockstat_udp6_inuse: f64,
+    pub sockstat_raw6_inuse: f64,
+    pub sockstat_frag6_inuse: f64,
+    pub softnet_dropped: f64,
+    pub softnet_processed: f64,
+    pub softnet_times_squeezed: f64,
+}
 pub fn process_statistic(
     sample: &Sample,
     hostname: &str,
@@ -398,4 +431,167 @@ pub fn print_sar_n_sock6_header()
              "raw6sck",
              "ip6-frag",
     );
+}
+
+pub fn create_network_plots(
+    historical_data: &Arc<Mutex<HistoricalData>>,
+)
+{
+    let unlocked_historical_data = historical_data.lock().unwrap();
+    for filter_hostname in unlocked_historical_data.network_details.keys().map(|(hostname, _, _)| hostname).unique()
+    {
+        for current_device in unlocked_historical_data.network_details.iter().filter(|((hostname, _, _), _)| hostname == filter_hostname).map(|((_, _, device), _)| device).unique()
+        {
+            let number_of_areas = 2;
+            let y_size_of_root = 1400;
+
+            let filename = format!("{}_network_{}.png", filter_hostname, current_device);
+            let root = BitMapBackend::new(&filename, (1280, y_size_of_root)).into_drawing_area();
+            let multiroot = root.split_evenly((number_of_areas, 1));
+
+
+            // packets plot
+            // set the plot specifics
+            let start_time = unlocked_historical_data.network_details
+                .keys()
+                .filter(|(hostname, _, device)| hostname == filter_hostname && device == current_device)
+                .map(|(_, timestamp, _)| timestamp)
+                .min()
+                .unwrap();
+            let end_time = unlocked_historical_data.network_details
+                .keys()
+                .filter(|(hostname, _, device)| hostname == filter_hostname && device == current_device)
+                .map(|(_, timestamp, _)| timestamp)
+                .max()
+                .unwrap();
+
+            // packets plot
+            let low_value_packets: f64 = 0.0;
+            let high_value_packets = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.receive_packets + row.transmit_packets)
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            multiroot[0].fill(&WHITE).unwrap();
+            let mut contextarea = ChartBuilder::on(&multiroot[0])
+                .set_label_area_size(LabelAreaPosition::Left, LABEL_AREA_SIZE_LEFT)
+                .set_label_area_size(LabelAreaPosition::Bottom, LABEL_AREA_SIZE_BOTTOM)
+                .set_label_area_size(LabelAreaPosition::Right, LABEL_AREA_SIZE_RIGHT)
+                .caption(format!("network packets per second: {} {}", filter_hostname, current_device), (CAPTION_STYLE_FONT, CAPTION_STYLE_FONT_SIZE))
+                .build_cartesian_2d(*start_time..*end_time, low_value_packets..high_value_packets)
+                .unwrap();
+            contextarea.configure_mesh()
+                .x_labels(4)
+                .x_label_formatter(&|x| x.to_rfc3339())
+                .y_desc("packets per second")
+                .label_style((MESH_STYLE_FONT, MESH_STYLE_FONT_SIZE))
+                .draw()
+                .unwrap();
+            let min_receive_packets = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.receive_packets )
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let max_receive_packets = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.receive_packets )
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            contextarea.draw_series(AreaSeries::new(unlocked_historical_data.network_details.iter()
+                                                        .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                                                        .map(|((_, timestamp, _), row)| (*timestamp, row.receive_packets + row.transmit_packets)), 0.0, Palette99::pick(1))
+            )
+                .unwrap()
+                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "Receive packets/s", min_receive_packets, max_receive_packets))
+                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(1).filled()));
+            let min_transmit_packets = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.transmit_packets )
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let max_transmit_packets = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.transmit_packets )
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            contextarea.draw_series(AreaSeries::new(unlocked_historical_data.network_details.iter()
+                                                        .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                                                        .map(|((_, timestamp, _), row)| (*timestamp, row.transmit_packets)), 0.0, Palette99::pick(2))
+            )
+                .unwrap()
+                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "Transmit packets/s", min_transmit_packets, max_transmit_packets))
+                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(2).filled()));
+            contextarea.configure_series_labels()
+                .border_style(BLACK)
+                .background_style(WHITE.mix(0.7))
+                .label_font((LABELS_STYLE_FONT, LABELS_STYLE_FONT_SIZE))
+                .position(UpperLeft)
+                .draw()
+                .unwrap();
+
+            // megabit plot
+            let low_value_mbit_second: f64 = 0.0;
+            let high_value_mbit_second = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| ((row.receive_bytes + row.transmit_bytes) / (1024.*1024.)) * 8. )
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            multiroot[1].fill(&WHITE).unwrap();
+            let mut contextarea = ChartBuilder::on(&multiroot[1])
+                .set_label_area_size(LabelAreaPosition::Left, LABEL_AREA_SIZE_LEFT)
+                .set_label_area_size(LabelAreaPosition::Bottom, LABEL_AREA_SIZE_BOTTOM)
+                .set_label_area_size(LabelAreaPosition::Right, LABEL_AREA_SIZE_RIGHT)
+                .caption(format!("network megabit per second: {} {}", filter_hostname, current_device), (CAPTION_STYLE_FONT, CAPTION_STYLE_FONT_SIZE))
+                .build_cartesian_2d(*start_time..*end_time, low_value_mbit_second..high_value_mbit_second)
+                .unwrap();
+            contextarea.configure_mesh()
+                .x_labels(4)
+                .x_label_formatter(&|x| x.to_rfc3339())
+                .y_desc("megabit per second")
+                .label_style((MESH_STYLE_FONT, MESH_STYLE_FONT_SIZE))
+                .draw()
+                .unwrap();
+            let min_receive_mbit_s = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| (row.receive_bytes / (1024.*1024.)) * 8. )
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let max_receive_mbit_s = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| (row.receive_bytes / (1024.*1024.)) * 8. )
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            contextarea.draw_series(AreaSeries::new(unlocked_historical_data.network_details.iter()
+                                                        .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                                                        .map(|((_, timestamp, _), row)| (*timestamp, ((row.receive_bytes + row.transmit_bytes) / (1024.*1024.)) * 8. )), 0.0, Palette99::pick(1))
+            )
+                .unwrap()
+                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "Receive mbit/s", min_receive_mbit_s, max_receive_mbit_s))
+                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(1).filled()));
+            let min_transmit_mbit_s = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| (row.transmit_bytes / (1024.*1024.)) * 8. )
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let max_transmit_mbit_s = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| (row.transmit_bytes / (1024.*1024.)) * 8. )
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            contextarea.draw_series(AreaSeries::new(unlocked_historical_data.network_details.iter()
+                                                        .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                                                        .map(|((_, timestamp, _), row)| (*timestamp, (row.transmit_packets / (1024.*1024.)) * 8. )), 0.0, Palette99::pick(2))
+            )
+                .unwrap()
+                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "Transmit mbit/s", min_transmit_mbit_s, max_transmit_mbit_s))
+                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(2).filled()));
+            contextarea.configure_series_labels()
+                .border_style(BLACK)
+                .background_style(WHITE.mix(0.7))
+                .label_font((LABELS_STYLE_FONT, LABELS_STYLE_FONT_SIZE))
+                .position(UpperLeft)
+                .draw()
+                .unwrap();
+        }
+    }
 }
