@@ -83,9 +83,10 @@ pub fn create_total(
         "node_xfs_write_calls_total" => {
             let last_timestamp = statistics.iter().find(|((hostname, metric, device, _), _)| hostname == host && metric == &sample.metric && device != "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
             let per_second_value = statistics.iter().filter(|((hostname, metric, device, _), _)| hostname == host && metric == &sample.metric && device != "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let first_val = statistics.iter().find(|((hostname, metric, device, _), _)| hostname == host && metric == &sample.metric && device != "total").map(|((_, _, _, _), statistic)| statistic.first_value).unwrap();
             statistics.entry((host.to_string(), sample.metric.to_string(), "total".to_string(), "".to_string()))
-                .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; row.first_value = false; })
-                .or_insert(Statistic { per_second_value, last_timestamp, first_value: true, ..Default::default() });
+                .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; row.first_value = first_val; })
+                .or_insert(Statistic { per_second_value, last_timestamp, first_value: first_val, ..Default::default() });
         },
         &_ => {},
     }

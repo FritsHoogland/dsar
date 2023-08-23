@@ -74,7 +74,7 @@ pub fn print_yb_memory(
 {
     for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
     {
-        if statistics.iter().any(|((host, metric, metric_type, _), row)| host == hostname && metric == "generic_heap_size" && metric_type == "server" && !row.first_value)
+        if statistics.iter().any(|((host, metric, metric_type, _), _)| host == hostname && metric == "generic_heap_size" && metric_type == "server" )
         {
             let generic_heap_size = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "generic_heap_size" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
             let generic_allocated = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "generic_current_allocated_bytes" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();

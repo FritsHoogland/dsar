@@ -190,7 +190,7 @@ impl HistoricalData {
     {
         for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
         {
-            if statistics.iter().any(|((host, metric, _, _), row)| host == hostname && metric == "node_memory_MemFree_bytes" && !row.first_value )
+            if statistics.iter().any(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_MemFree_bytes" )
             {
                 let active_anon = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Active_anon_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let active = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Active_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
@@ -307,7 +307,7 @@ impl HistoricalData {
     {
         for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
         {
-            if statistics.iter().any(|((host, metric, metric_type, _), row)| host == hostname && metric == "generic_heap_size" && metric_type == "server" && !row.first_value )
+            if statistics.iter().any(|((host, metric, metric_type, _), _)| host == hostname && metric == "generic_heap_size" && metric_type == "server" )
             {
                 let generic_heap = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "generic_heap_size" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let generic_allocated = statistics.iter().find(|((host, metric, metric_type, _), _)| host == hostname && metric == "generic_current_allocated_bytes" && metric_type == "server").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
@@ -426,14 +426,17 @@ impl HistoricalData {
     {
         for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
         {
-            if statistics.iter().any(|((host, metric, _, _), row)| host == hostname && metric == "node_pressure_cpu_waiting_seconds_total" && !row.first_value )
+            if statistics.iter().any(|((host, metric, _, _), row)| host == hostname && metric == "node_load1" && !row.first_value )
             {
-                let timestamp = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_cpu_waiting_seconds_total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
-                let some_cpu = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_cpu_waiting_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
-                let some_io = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_io_waiting_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
-                let full_io = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_io_stalled_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
-                let some_mem = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_memory_waiting_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
-                let full_mem = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_memory_stalled_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let timestamp = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_load1").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
+                let some_cpu = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_cpu_waiting_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
+                let some_io = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_io_waiting_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
+                let full_io = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_io_stalled_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
+                let some_mem = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_memory_waiting_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
+                let full_mem = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_memory_stalled_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
+                let load_1 = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_load1").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let load_5 = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_load5").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let load_15 = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_load15").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 self.misc_details.entry((hostname.to_string(), timestamp)).or_insert(
                     NodeMiscDetails {
                         some_cpu,
@@ -441,6 +444,9 @@ impl HistoricalData {
                         full_io,
                         some_mem,
                         full_mem,
+                        load_1,
+                        load_5,
+                        load_15,
                     }
                 );
             }
@@ -723,6 +729,8 @@ pub async fn process_statistics(
                 &_ => {},
             }
         }
+        // this is highly inefficient currently, because it will visit every single statistic.
+        // So statistics like single vcpu statistics, per disk statistics and per NIC statistics will all likely be re-revisited.
         for sample in &scrape.samples
         {
             node_cpu::create_total(sample, hostname, statistics);

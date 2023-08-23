@@ -79,6 +79,8 @@ pub fn process_statistic(
                         ..Default::default()
                     }
                 );
+            //println!("{:?}", &statistics.iter().find(|((host, metric, cpu, _), _)| host == hostname && metric == &sample.metric && cpu = cpu_number).map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap());
+            //println!("{:?}", &statistics.iter().find(|((host, metric, cpu_nr , mode_name), statistic)| host == &hostname && metric == &sample.metric && cpu_nr == cpu_number && mode_name == mode).map(|((_, _, _, _), statistic)| statistic).unwrap());
         },
         &_ => {},
     }
@@ -96,18 +98,21 @@ pub fn create_total(
         "node_schedstat_waiting_seconds_total" => {
             let last_timestamp = statistics.iter().find(|((hostname, metric, cpu, _), _)| hostname == host && metric == &sample.metric && cpu != "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
             let per_second_value = statistics.iter().filter(|((hostname, metric, cpu, _), _)| hostname == host && metric == &sample.metric && cpu != "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let first_val = statistics.iter().find(|((hostname, metric, cpu, _), _)| hostname == host && metric == &sample.metric && cpu != "total").map(|((_, _, _, _), statistic)| statistic.first_value).unwrap();
             statistics.entry((host.to_string(), sample.metric.to_string(), "total".to_string(), "".to_string()))
-                    .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; row.first_value = false; })
-                    .or_insert(Statistic { per_second_value, last_timestamp, first_value: true, ..Default::default() });
+                    .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; row.first_value = first_val; })
+                    .or_insert(Statistic { per_second_value, last_timestamp, first_value: first_val, ..Default::default() });
         },
         "node_cpu_seconds_total" |
         "node_cpu_guest_seconds_total" => {
             let mode = sample.labels.iter().find(|(label, _)| *label == "mode").map(|(_, value)| value).unwrap();
             let last_timestamp = statistics.iter().find(|((hostname, metric, cpu, run_mode), _)| hostname == host && metric == &sample.metric && cpu != "total" && run_mode == mode).map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
             let per_second_value = statistics.iter().filter(|((hostname, metric, cpu, run_mode), _)| hostname == host && metric == &sample.metric && cpu != "total" && run_mode == mode).map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let first_val = statistics.iter().find(|((hostname, metric, cpu, run_mode), _)| hostname == host && metric == &sample.metric && cpu != "total" && run_mode == mode).map(|((_, _, _, _), statistic)| statistic.first_value).unwrap();
             statistics.entry((host.to_string(), sample.metric.to_string(), "total".to_string(), mode.to_string()))
-                    .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; row.first_value = false; })
-                    .or_insert(Statistic { per_second_value, last_timestamp, first_value: true, ..Default::default() });
+                    .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; row.first_value = first_val; })
+                    .or_insert(Statistic { per_second_value, last_timestamp, first_value: first_val, ..Default::default() });
+            //println!("total: {:?}", &statistics.iter().find(|((hostname , metric, cpu_nr , mode_name), statistic)| hostname == host && metric == &sample.metric && cpu_nr == "total" && mode_name == mode).map(|((h, m, c, o), statistic)| (h, m, c, o, statistic)).unwrap());
         },
         &_ => {},
     }

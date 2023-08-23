@@ -38,6 +38,7 @@ pub fn process_statistic(
                     row.per_second_value = row.delta_value / (sample.timestamp.signed_duration_since(row.last_timestamp).num_milliseconds() as f64 / 1000.0);
                     row.last_value = value;
                     row.last_timestamp = sample.timestamp;
+                    row.first_value = false;
                     debug!("{} device: {}, last_value: {}, last_timestamp: {}, delta_value: {}, per_second_value: {}", sample.metric, device, row.last_value, row.last_timestamp, row.delta_value, row.per_second_value);
                 } )
                 .or_insert(
@@ -45,6 +46,7 @@ pub fn process_statistic(
                     {
                         last_value: value,
                         last_timestamp: sample.timestamp,
+                        first_value: true,
                         ..Default::default()
                     }
                 );
@@ -94,6 +96,7 @@ pub fn process_statistic(
                     row.per_second_value = row.delta_value / (sample.timestamp.signed_duration_since(row.last_timestamp).num_milliseconds() as f64 / 1000.0);
                     row.last_value = value;
                     row.last_timestamp = sample.timestamp;
+                    row.first_value = false;
                     debug!("{}: metric: {} cpu: {}, last_value: {}, last_timestamp: {}, delta_value: {}, per_second_value: {}", hostname, sample.metric, cpu, row.last_value, row.last_timestamp, row.delta_value, row.per_second_value);
                 } )
                 .or_insert(
@@ -101,6 +104,7 @@ pub fn process_statistic(
                     {
                         last_value: value,
                         last_timestamp: sample.timestamp,
+                        first_value: true,
                         ..Default::default()
                     }
                 );
@@ -133,19 +137,39 @@ pub fn create_total(
         "node_network_receive_fifo_total" |
         "node_network_transmit_fifo_total" => {
             let last_timestamp = statistics.iter().find(|((hostname, metric, device, _), _)| hostname == host && metric == &sample.metric && device != "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
-                let per_second_value = statistics.iter().filter(|((hostname, metric, device, _), _)| hostname == host && metric == &sample.metric && device != "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
-                statistics.entry((host.to_string(), sample.metric.to_string(), "total".to_string(), "".to_string()))
-                    .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; })
-                    .or_insert(Statistic { per_second_value, last_timestamp, ..Default::default() });
+            let per_second_value = statistics.iter().filter(|((hostname, metric, device, _), _)| hostname == host && metric == &sample.metric && device != "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let first_val = statistics.iter().find(|((hostname, metric, device, _), _)| hostname == host && metric == &sample.metric && device != "total").map(|((_, _, _, _), statistic)| statistic.first_value).unwrap();
+            statistics.entry((host.to_string(), sample.metric.to_string(), "total".to_string(), "".to_string()))
+                .and_modify(|row| {
+                    row.per_second_value = per_second_value;
+                    row.last_timestamp = last_timestamp;
+                    row.first_value = first_val;
+                })
+                .or_insert(Statistic {
+                    per_second_value,
+                    last_timestamp,
+                    first_value: first_val,
+                    ..Default::default()
+                });
         },
         "node_softnet_dropped_total" |
         "node_softnet_processed_total" |
         "node_softnet_times_squeezed_total" => {
             let last_timestamp = statistics.iter().find(|((hostname, metric, cpu, _), _)| hostname == host && metric == &sample.metric && cpu != "total").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
             let per_second_value = statistics.iter().filter(|((hostname, metric, cpu, _), _)| hostname == host && metric == &sample.metric && cpu != "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).sum();
+            let first_val = statistics.iter().find(|((hostname, metric, cpu, _), _)| hostname == host && metric == &sample.metric && cpu != "total").map(|((_, _, _, _), statistic)| statistic.first_value).unwrap();
             statistics.entry((host.to_string(), sample.metric.to_string(), "total".to_string(), "".to_string()))
-                .and_modify(|row| { row.per_second_value = per_second_value; row.last_timestamp = last_timestamp; })
-                .or_insert(Statistic { per_second_value, last_timestamp, ..Default::default() });
+                .and_modify(|row| {
+                    row.per_second_value = per_second_value;
+                    row.last_timestamp = last_timestamp;
+                    row.first_value = first_val;
+                })
+                .or_insert(Statistic {
+                    per_second_value,
+                    last_timestamp,
+                    first_value: first_val,
+                    ..Default::default()
+                });
         }
         &_ => {},
     }
@@ -157,7 +181,7 @@ pub fn print_sar_n_soft(
 {
     for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
     {
-        if statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_softnet_processed_total").count() > 0
+        if statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && !statistic.first_value && metric == "node_softnet_processed_total").count() > 0
         {
             let soft_total = statistics.iter().find(|((host, metric, cpu, _), _)| host == hostname && metric == "node_softnet_processed_total" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
             let soft_dropped = statistics.iter().find(|((host, metric, cpu, _), _)| host == hostname && metric == "node_softnet_dropped_total" && cpu == "total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
@@ -251,7 +275,7 @@ pub fn print_sar_n_dev(
 {
     for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
     {
-        if statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_network_receive_packets_total").count() > 0
+        if statistics.iter().filter(|((host, metric, _, _), statistic)| host == hostname && !statistic.first_value && metric == "node_network_receive_packets_total").count() > 0
         {
             for current_device in statistics.iter().filter(|((host, metric, _, _), _)| host == hostname && metric == "node_network_receive_packets_total").map(|((_, _, device, _), _)| device)
             {

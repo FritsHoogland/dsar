@@ -14,6 +14,9 @@ pub struct NodeMiscDetails {
     pub full_io: f64,
     pub some_mem: f64,
     pub full_mem: f64,
+    pub load_1: f64,
+    pub load_5: f64,
+    pub load_15: f64,
 }
 
 pub fn process_statistic(
@@ -44,6 +47,7 @@ pub fn process_statistic(
                     row.per_second_value = row.delta_value / (sample.timestamp.signed_duration_since(row.last_timestamp).num_milliseconds() as f64 / 1000.);
                     row.last_value = value;
                     row.last_timestamp = sample.timestamp;
+                    row.first_value = false;
                     debug!("{}: {} last_value: {}, last_timestamp: {}, delta_value: {}, per_second_value: {}", hostname, sample.metric, row.last_value, row.last_timestamp, row.delta_value, row.per_second_value);
                 } )
                 .or_insert(
@@ -51,6 +55,7 @@ pub fn process_statistic(
                     {
                         last_value: value,
                         last_timestamp: sample.timestamp,
+                        first_value: true,
                         ..Default::default()
                     }
                 );
@@ -179,6 +184,7 @@ pub fn create_misc_plots(
     let unlocked_historical_data = historical_data.lock().unwrap();
     for filter_hostname in unlocked_historical_data.misc_details.keys().map(|(hostname, _)| hostname).unique()
     {
+        // psi
         let start_time = unlocked_historical_data.misc_details
             .keys()
             .filter(|(hostname, _)| hostname == filter_hostname)
@@ -327,6 +333,119 @@ pub fn create_misc_plots(
             .unwrap()
             .label(format!("{:25} min: {:10.3}, max: {:10.3}", "Full memory (s)", min_full_mem, max_full_mem))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(5).filled()));
+
+        contextarea.configure_series_labels()
+            .border_style(BLACK)
+            .background_style(WHITE.mix(0.7))
+            .label_font((LABELS_STYLE_FONT, LABELS_STYLE_FONT_SIZE))
+            .position(UpperLeft)
+            .draw()
+            .unwrap();
+        // os load figure
+        let start_time = unlocked_historical_data.misc_details
+            .keys()
+            .filter(|(hostname, _)| hostname == filter_hostname)
+            .map(|(_, timestamp)| timestamp)
+            .min()
+            .unwrap();
+        let end_time = unlocked_historical_data.misc_details
+            .keys()
+            .filter(|(hostname, _)| hostname == filter_hostname)
+            .map(|(_, timestamp)| timestamp)
+            .max()
+            .unwrap();
+        let low_value: f64 = 0.0;
+        let high_value_load_1 = unlocked_historical_data.misc_details.iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname)
+            .map(|((_, _), row)| row.load_1)
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        let high_value_load_5 = unlocked_historical_data.misc_details.iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname)
+            .map(|((_, _), row)| row.load_5)
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        let high_value_load_15 = unlocked_historical_data.misc_details.iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname)
+            .map(|((_, _), row)| row.load_15)
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        let high_value = vec![high_value_load_1, high_value_load_5, high_value_load_15].into_iter().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap();
+        let filename = format!("{filter_hostname}_load.png");
+
+        let root = BitMapBackend::new(&filename, (1280,900)).into_drawing_area();
+        root.fill(&WHITE).unwrap();
+        let mut contextarea = ChartBuilder::on(&root)
+            .set_label_area_size(LabelAreaPosition::Left, LABEL_AREA_SIZE_LEFT)
+            .set_label_area_size(LabelAreaPosition::Bottom, LABEL_AREA_SIZE_BOTTOM)
+            .set_label_area_size(LabelAreaPosition::Right, LABEL_AREA_SIZE_RIGHT)
+            .caption(format!("load: {}",filter_hostname), (CAPTION_STYLE_FONT, CAPTION_STYLE_FONT_SIZE))
+            .build_cartesian_2d(*start_time..*end_time, low_value..high_value)
+            .unwrap();
+        contextarea.configure_mesh()
+            .x_labels(4)
+            .x_label_formatter(&|x| x.to_rfc3339())
+            .y_desc("load")
+            .label_style((MESH_STYLE_FONT, MESH_STYLE_FONT_SIZE))
+            .draw()
+            .unwrap();
+
+        let min_load_1 = unlocked_historical_data.misc_details.iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname )
+            .map(|((_, _), row)| row.load_1 )
+            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        let max_load_1 = unlocked_historical_data.misc_details.iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname )
+            .map(|((_, _), row)| row.load_1 )
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        contextarea.draw_series(LineSeries::new(unlocked_historical_data.misc_details.iter()
+                                                    .filter(|((hostname, _), _)| hostname == filter_hostname)
+                                                    .map(|((_, timestamp), row)| (*timestamp, row.load_1 )),
+                                                Palette99::pick(1))
+        )
+            .unwrap()
+            .label(format!("{:25} min: {:10.3}, max: {:10.3}", "load 1 min", min_load_1, max_load_1))
+            .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(1).filled()));
+
+        let min_load_5 = unlocked_historical_data.misc_details.iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname )
+            .map(|((_, _), row)| row.load_5 )
+            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        let max_load_5 = unlocked_historical_data.misc_details.iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname )
+            .map(|((_, _), row)| row.load_5 )
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        contextarea.draw_series(LineSeries::new(unlocked_historical_data.misc_details.iter()
+                                                    .filter(|((hostname, _), _)| hostname == filter_hostname)
+                                                    .map(|((_, timestamp), row)| (*timestamp, row.load_5 )),
+                                                Palette99::pick(2))
+        )
+            .unwrap()
+            .label(format!("{:25} min: {:10.3}, max: {:10.3}", "load 5 min", min_load_5, max_load_5))
+            .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(2).filled()));
+
+        let min_load_15 = unlocked_historical_data.misc_details.iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname )
+            .map(|((_, _), row)| row.load_15 )
+            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        let max_load_15 = unlocked_historical_data.misc_details.iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname )
+            .map(|((_, _), row)| row.load_15 )
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        contextarea.draw_series(LineSeries::new(unlocked_historical_data.misc_details.iter()
+                                                    .filter(|((hostname, _), _)| hostname == filter_hostname)
+                                                    .map(|((_, timestamp), row)| (*timestamp, row.load_15 )),
+                                                Palette99::pick(3))
+        )
+            .unwrap()
+            .label(format!("{:25} min: {:10.3}, max: {:10.3}", "load 15 min", min_load_15, max_load_15))
+            .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(3).filled()));
 
         contextarea.configure_series_labels()
             .border_style(BLACK)
