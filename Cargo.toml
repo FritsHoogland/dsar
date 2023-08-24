@@ -1,6 +1,6 @@
 [package]
 name = "dsar"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 license = "apache-2.0"
 description = "A utility to get sar like functionality using node_exporter endpoints of multiple machines."
@@ -28,8 +28,11 @@ assets = [
 release = "1.el8"
 
 [package.metadata.deb]
-copyright = "2021, Frits Hoogland <fhoogland@yugabyte.com>"
-maintainer = "Frits Hoogland <fhoogland@yugabyte.com>"
+copyright = "2021, Frits Hoogland <fhoogland@gmail.com>"
+maintainer = "Frits Hoogland <fhoogland@gmail.com>"
+depends = "$auto"
+section = "utility"
+priority = "optional"
 assets = [
     ["target/release/dsar", "/usr/local/bin/", "755"]
 ]

@@ -17,6 +17,7 @@ RUN strip -s target/release/dsar
 # generate rpm
 RUN cargo install cargo-deb
 RUN cargo deb
+RUN FILE=$(ls /usr/src/dsar/target/debian/dsar*deb); mv $FILE $(echo $FILE | sed 's/\(.*\)_\(amd64.deb\)/\1_0ubuntu1.22.04.1_\2/')
 
 # output file
 FROM scratch as export-stage

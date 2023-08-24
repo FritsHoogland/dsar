@@ -1,0 +1,6 @@
+**/target
+**/doc
+*.png
+*.rpm
+*.deb
+*.tar.gz
