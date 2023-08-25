@@ -112,7 +112,7 @@ pub fn print_vmstat(
 {
     for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
     {
-        if statistics.iter().any(|((host, metric, _, _), _)| host == hostname && metric == "node_procs_running")
+        if statistics.iter().any(|((host, metric, _, _), statistic)| host == hostname && metric == "node_procs_running" && !statistic.first_value)
         {
             let procs_running = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_procs_running").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
             let procs_blocked = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_procs_blocked").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
