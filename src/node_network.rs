@@ -444,8 +444,8 @@ pub fn create_network_plots(
     {
         for current_device in unlocked_historical_data.network_details.iter().filter(|((hostname, _, _), _)| hostname == filter_hostname).map(|((_, _, device), _)| device).unique()
         {
-            let number_of_areas = 2;
-            let y_size_of_root = 1400;
+            let number_of_areas = 3;
+            let y_size_of_root = 2100;
 
             let filename = format!("{}_network_{}.png", filter_hostname, current_device);
             let root = BitMapBackend::new(&filename, (1280, y_size_of_root)).into_drawing_area();
@@ -593,15 +593,173 @@ pub fn create_network_plots(
                 .unwrap()
                 .label(format!("{:25} min: {:10.2}, max: {:10.2}", "Transmit mbit/s", min_transmit_mbit_s, max_transmit_mbit_s))
                 .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(2).filled()));
-            /*
-            contextarea.draw_secondary_series(AreaSeries::new(unlocked_historical_data.network_details.iter()
+            contextarea.configure_series_labels()
+                .border_style(BLACK)
+                .background_style(WHITE.mix(0.7))
+                .label_font((LABELS_STYLE_FONT, LABELS_STYLE_FONT_SIZE))
+                .position(UpperLeft)
+                .draw()
+                .unwrap();
+
+            // error plot
+            let low_value: f64 = 0.0;
+            let low_value_receive_errors_second = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.receive_errs)
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let high_value_receive_errors_second = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.receive_errs)
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let low_value_transmit_errors_second = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.transmit_errs)
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let high_value_transmit_errors_second = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.transmit_errs)
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let low_value_transmit_collisions_second = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.transmit_colls)
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let high_value_transmit_collisions_second = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.transmit_colls)
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let low_value_receive_drop_second = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.receive_drop)
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let high_value_receive_drop_second = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.receive_drop)
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let low_value_transmit_drop_second = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.transmit_drop)
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let high_value_transmit_drop_second = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.transmit_drop)
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let low_value_transmit_carrier_second = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.transmit_carrier)
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let high_value_transmit_carrier_second = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.transmit_carrier)
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let low_value_receive_fifo_second = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.receive_fifo)
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let high_value_receive_fifo_second = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.receive_fifo)
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let low_value_transmit_fifo_second = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.transmit_fifo)
+                .min_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let high_value_transmit_fifo_second = unlocked_historical_data.network_details.iter()
+                .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                .map(|((_, _, _), row)| row.transmit_fifo)
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .unwrap();
+            let high_value_overall = [&high_value_receive_errors_second, &high_value_transmit_errors_second, &high_value_transmit_collisions_second, &high_value_receive_drop_second, &high_value_transmit_drop_second, &high_value_transmit_carrier_second, &high_value_receive_fifo_second, &high_value_transmit_fifo_second]
+                .iter()
+                .max_by(|a, b| a.partial_cmp(b).unwrap())
+                .copied()
+                .unwrap();
+
+            multiroot[2].fill(&WHITE).unwrap();
+            let mut contextarea = ChartBuilder::on(&multiroot[2])
+                .set_label_area_size(LabelAreaPosition::Left, LABEL_AREA_SIZE_LEFT)
+                .set_label_area_size(LabelAreaPosition::Bottom, LABEL_AREA_SIZE_BOTTOM)
+                .set_label_area_size(LabelAreaPosition::Right, LABEL_AREA_SIZE_RIGHT)
+                .caption(format!("network errors per second: {} {}", filter_hostname, current_device), (CAPTION_STYLE_FONT, CAPTION_STYLE_FONT_SIZE))
+                .build_cartesian_2d(*start_time..*end_time, low_value..high_value_overall.clone())
+                .unwrap();
+            contextarea.configure_mesh()
+                .x_labels(4)
+                .x_label_formatter(&|x| x.to_rfc3339())
+                .y_desc("errors per second")
+                .label_style((MESH_STYLE_FONT, MESH_STYLE_FONT_SIZE))
+                .draw()
+                .unwrap();
+            contextarea.draw_series(LineSeries::new(unlocked_historical_data.network_details.iter()
                                                         .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
-                                                        .map(|((_, timestamp, _), row)| (*timestamp, (row.receive_bytes + row.transmit_bytes) / (1024.*1024.) )), 0.0, TRANSPARENT)
+                                                        .map(|((_, timestamp, _), row)| (*timestamp, row.receive_errs)), Palette99::pick(1))
             )
                 .unwrap()
+                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "Receive errors/s", low_value_receive_errors_second, high_value_receive_errors_second))
                 .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(1).filled()));
-
-             */
+            contextarea.draw_series(LineSeries::new(unlocked_historical_data.network_details.iter()
+                                                        .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                                                        .map(|((_, timestamp, _), row)| (*timestamp, row.transmit_errs)), Palette99::pick(2))
+            )
+                .unwrap()
+                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "Transmit errors/s", low_value_transmit_errors_second, high_value_transmit_errors_second))
+                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(2).filled()));
+            contextarea.draw_series(LineSeries::new(unlocked_historical_data.network_details.iter()
+                                                        .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                                                        .map(|((_, timestamp, _), row)| (*timestamp, row.transmit_colls)), Palette99::pick(3))
+            )
+                .unwrap()
+                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "Transmit collisions/s", low_value_transmit_collisions_second, high_value_transmit_collisions_second))
+                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(3).filled()));
+            contextarea.draw_series(LineSeries::new(unlocked_historical_data.network_details.iter()
+                                                        .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                                                        .map(|((_, timestamp, _), row)| (*timestamp, row.receive_drop)), Palette99::pick(4))
+            )
+                .unwrap()
+                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "Receive drop/s", low_value_receive_drop_second, high_value_receive_drop_second))
+                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(4).filled()));
+            contextarea.draw_series(LineSeries::new(unlocked_historical_data.network_details.iter()
+                                                        .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                                                        .map(|((_, timestamp, _), row)| (*timestamp, row.transmit_drop)), Palette99::pick(5))
+            )
+                .unwrap()
+                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "Transmit drop/s", low_value_transmit_drop_second, high_value_transmit_drop_second))
+                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(5).filled()));
+            contextarea.draw_series(LineSeries::new(unlocked_historical_data.network_details.iter()
+                                                        .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                                                        .map(|((_, timestamp, _), row)| (*timestamp, row.transmit_carrier)), Palette99::pick(6))
+            )
+                .unwrap()
+                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "Transmit carrier/s", low_value_transmit_carrier_second, high_value_transmit_carrier_second))
+                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(6).filled()));
+            contextarea.draw_series(LineSeries::new(unlocked_historical_data.network_details.iter()
+                                                        .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                                                        .map(|((_, timestamp, _), row)| (*timestamp, row.receive_fifo)), Palette99::pick(7))
+            )
+                .unwrap()
+                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "Receive fifo/s", low_value_receive_fifo_second, high_value_receive_fifo_second))
+                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(7).filled()));
+            contextarea.draw_series(LineSeries::new(unlocked_historical_data.network_details.iter()
+                                                        .filter(|((hostname, _, device), _)| hostname == filter_hostname && device == current_device)
+                                                        .map(|((_, timestamp, _), row)| (*timestamp, row.transmit_fifo)), Palette99::pick(8))
+            )
+                .unwrap()
+                .label(format!("{:25} min: {:10.2}, max: {:10.2}", "Transmit fifo/s", low_value_transmit_fifo_second, high_value_transmit_fifo_second))
+                .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(8).filled()));
             contextarea.configure_series_labels()
                 .border_style(BLACK)
                 .background_style(WHITE.mix(0.7))
