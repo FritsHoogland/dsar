@@ -366,6 +366,44 @@ pub fn create_memory_plots(
             .unwrap()
             .label(format!("{:25} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "memory total", min_memory_total, max_memory_total, latest.memtotal/ (1024. * 1024.)))
             .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(1).filled()));
+        // swap cached + kernelstack + hardware corrupted + slab + pagetables + dirty + cached + anonymous + memfree + (hugepages_total - hugepages_free * hugepagesize) 14
+        let min_memory_hugepages_used = unlocked_historical_data.memory_details.iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname)
+            .map(|((_, _), row)| ((row.hugepages_total - row.hugepages_free) * row.hugepagesize) / (1024. * 1024.))
+            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        let max_memory_hugepages_used = unlocked_historical_data.memory_details.iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname)
+            .map(|((_, _), row)|  ((row.hugepages_total - row.hugepages_free) * row.hugepagesize) / (1024. * 1024.))
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        contextarea.draw_series(AreaSeries::new(unlocked_historical_data.memory_details.iter()
+                                                    .filter(|((hostname, _), _)| hostname == filter_hostname)
+                                                    .map(|((_, timestamp), row)| (*timestamp, (row.swapcached + row.kernelstack + row.hardwarecorrupted + row.slab + row.pagetables + row.cached + row.anonpages + row.memfree + (row.hugepages_total * row.hugepagesize)) / (1024. * 1024.))),
+                                                0.0, Palette99::pick(14))
+        )
+            .unwrap()
+            .label(format!("{:25} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "hugepages used", min_memory_hugepages_used, max_memory_hugepages_used, ((latest.hugepages_total - latest.hugepages_free) * latest.hugepagesize) / (1024. * 1024.)))
+            .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(14).filled()));
+        // swap cached + kernelstack + hardware corrupted + slab + pagetables + dirty + cached + anonymous + memfree + (hugepages_free * hugepagesize) 13
+        let min_memory_hugepages_used = unlocked_historical_data.memory_details.iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname)
+            .map(|((_, _), row)| (row.hugepages_free * row.hugepagesize) / (1024. * 1024.))
+            .min_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        let max_memory_hugepages_used = unlocked_historical_data.memory_details.iter()
+            .filter(|((hostname, _), _)| hostname == filter_hostname)
+            .map(|((_, _), row)|  (row.hugepages_free * row.hugepagesize) / (1024. * 1024.))
+            .max_by(|a, b| a.partial_cmp(b).unwrap())
+            .unwrap();
+        contextarea.draw_series(AreaSeries::new(unlocked_historical_data.memory_details.iter()
+                                                    .filter(|((hostname, _), _)| hostname == filter_hostname)
+                                                    .map(|((_, timestamp), row)| (*timestamp, (row.swapcached + row.kernelstack + row.hardwarecorrupted + row.slab + row.pagetables + row.cached + row.anonpages + row.memfree + (row.hugepages_free * row.hugepagesize)) / (1024. * 1024.))),
+                                                0.0, Palette99::pick(13))
+        )
+            .unwrap()
+            .label(format!("{:25} min: {:10.2}, max: {:10.2}, latest: {:10.2}", "hugepages free", min_memory_hugepages_used, max_memory_hugepages_used, (latest.hugepages_free * latest.hugepagesize) / (1024. * 1024.)))
+            .legend(move |(x, y)| Rectangle::new([(x - 3, y - 3), (x + 3, y + 3)], Palette99::pick(13).filled()));
         // swap cached + kernelstack + hardware corrupted + slab + pagetables + dirty + cached + anonymous + memfree 12
         let min_memory_swapcached = unlocked_historical_data.memory_details.iter()
             .filter(|((hostname, _), _)| hostname == filter_hostname)
