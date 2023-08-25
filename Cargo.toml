@@ -1,9 +1,9 @@
 [package]
 name = "dsar"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2021"
 license = "apache-2.0"
-description = "A utility to get sar like functionality using node_exporter endpoints of multiple machines."
+description = "A utility to get sar like functionality using node_exporter endpoints from multiple machines."
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
