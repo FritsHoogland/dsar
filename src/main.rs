@@ -15,7 +15,7 @@ use dsar::node_cpu::{print_sar_u, print_sar_u_header, create_cpu_plots};
 use dsar::node_disk::{print_sar_d, print_sar_d_header, print_iostat, print_iostat_header, print_iostat_x, print_iostat_x_header, print_xfs_iops, print_xfs_iops_header, create_disk_plots};
 use dsar::node_network::{print_sar_n_dev, print_sar_n_dev_header, print_sar_n_edev, print_sar_n_edev_header, print_sar_n_sock, print_sar_n_sock_header, print_sar_n_sock6, print_sar_n_sock6_header, print_sar_n_soft, print_sar_n_soft_header, create_network_plots};
 use dsar::node_memory::{create_memory_plots, print_sar_r, print_sar_r_header, print_sar_s, print_sar_s_header};
-use dsar::node_vmstat::{print_sar_b, print_sar_b_header, print_sar_w, print_sar_w_header, print_vmstat, print_vmstat_header};
+use dsar::node_vmstat::{print_sar_b, print_sar_b_header, print_sar_w, print_sar_w_header, print_vmstat, print_vmstat_header, create_vmstat_plots};
 use dsar::node_misc::{print_sar_q, print_sar_q_header, print_psi, print_psi_header, create_misc_plots};
 use dsar::yb_cpu::{print_yb_cpu, print_yb_cpu_header};
 use dsar::yb_network::{print_yb_network, print_yb_network_header};
@@ -111,6 +111,7 @@ async fn main()
             create_yb_io_plots(&historical_data_ctrlc);
             create_misc_plots(&historical_data_ctrlc);
             create_network_plots(&historical_data_ctrlc);
+            create_vmstat_plots(&historical_data_ctrlc);
         };
         process::exit(0);
     }).unwrap();

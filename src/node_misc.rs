@@ -17,6 +17,10 @@ pub struct NodeMiscDetails {
     pub load_1: f64,
     pub load_5: f64,
     pub load_15: f64,
+    pub interrupts: f64,
+    pub context_switches: f64,
+    pub processes_running: f64,
+    pub processes_blocked: f64,
 }
 
 pub fn process_statistic(

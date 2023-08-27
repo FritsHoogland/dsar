@@ -14,6 +14,7 @@ use crate::node_memory::NodeMemoryDetails;
 use crate::yb_memory::YbMemoryDetails;
 use crate::yb_io::YbIoDetails;
 use crate::node_misc::NodeMiscDetails;
+use crate::node_vmstat::NodeVmstatDetails;
 
 pub mod node_cpu;
 pub mod node_disk;
@@ -54,6 +55,7 @@ pub struct HistoricalData {
     pub yb_memory_details: BTreeMap<(String, DateTime<Utc>), YbMemoryDetails>,
     pub yb_io_details: BTreeMap<(String, DateTime<Utc>), YbIoDetails>,
     pub misc_details: BTreeMap<(String, DateTime<Utc>), NodeMiscDetails>,
+    pub vmstat_details: BTreeMap<(String, DateTime<Utc>), NodeVmstatDetails>,
 }
 
 impl HistoricalData {
@@ -72,6 +74,7 @@ impl HistoricalData {
         self.add_yb_memory_statistics(statistics);
         self.add_yb_io_statistics(statistics);
         self.add_node_misc_statistics(statistics);
+        self.add_node_vmstat_statistics(statistics);
     }
     pub fn add_node_cpu_statistics(
         &mut self,
@@ -281,6 +284,8 @@ impl HistoricalData {
         {
             if statistics.iter().any(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_MemFree_bytes" )
             {
+                let timestamp = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_MemFree_bytes").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
+
                 let active_anon = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Active_anon_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let active = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Active_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let active_file = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Active_file_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
@@ -331,7 +336,6 @@ impl HistoricalData {
                 let vmallocused = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_VmallocUsed_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let writebacktmp = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_WritebackTmp_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let writeback = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_Writeback_bytes").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
-                let timestamp = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_memory_MemFree_bytes").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
                 self.memory_details.entry((hostname.to_string(), timestamp)).or_insert(
                     NodeMemoryDetails{
                         active_anon,
@@ -518,6 +522,7 @@ impl HistoricalData {
             if statistics.iter().any(|((host, metric, _, _), row)| host == hostname && metric == "node_load1" && !row.first_value )
             {
                 let timestamp = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_load1").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
+
                 let some_cpu = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_cpu_waiting_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
                 let some_io = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_io_waiting_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
                 let full_io = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_pressure_io_stalled_seconds_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
@@ -526,6 +531,10 @@ impl HistoricalData {
                 let load_1 = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_load1").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let load_5 = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_load5").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 let load_15 = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_load15").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let interrupts = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_intr_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let context_switches = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_context_switches_total").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let processes_running = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_procs_running").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
+                let processes_blocked = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_procs_blocked").map(|((_, _, _, _), statistic)| statistic.last_value).unwrap();
                 self.misc_details.entry((hostname.to_string(), timestamp)).or_insert(
                     NodeMiscDetails {
                         some_cpu,
@@ -536,6 +545,42 @@ impl HistoricalData {
                         load_1,
                         load_5,
                         load_15,
+                        interrupts,
+                        context_switches,
+                        processes_running,
+                        processes_blocked,
+                    }
+                );
+            }
+        }
+    }
+    pub fn add_node_vmstat_statistics(
+        &mut self,
+        statistics: &BTreeMap<(String, String, String, String), Statistic>,
+    )
+    {
+        for hostname in statistics.iter().map(|((hostname, _, _, _), _)| hostname).unique()
+        {
+            if statistics.iter().any(|((host, metric, _, _), row)| host == hostname && metric == "node_vmstat_pgpgin" && !row.first_value )
+            {
+                let timestamp = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_vmstat_pgpgin").map(|((_, _, _, _), statistic)| statistic.last_timestamp).unwrap();
+
+                let pages_swap_in = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_vmstat_pswpin").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
+                let pages_swap_out = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_vmstat_pswpout").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
+                let pages_page_in = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_vmstat_pgpgin").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
+                let pages_page_out = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_vmstat_pgpgout").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
+                let pages_minor_pagefault = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_vmstat_pgfault").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap_or_default();
+                let pages_major_pagefault = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_vmstat_pgmajfault").map(|((_, _, _, _), statistic)| statistic.per_second_value).unwrap();
+                let oom_kill = statistics.iter().find(|((host, metric, _, _), _)| host == hostname && metric == "node_vmstat_oom_kill").map(|((_, _, _, _), statistic)| statistic.delta_value).unwrap();
+                self.vmstat_details.entry((hostname.to_string(), timestamp)).or_insert(
+                    NodeVmstatDetails {
+                        pages_swap_in,
+                        pages_swap_out,
+                        pages_page_in,
+                        pages_page_out,
+                        pages_minor_pagefault,
+                        pages_major_pagefault,
+                        oom_kill,
                     }
                 );
             }
