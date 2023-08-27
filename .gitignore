@@ -1,6 +1,6 @@
 /target
 .idea
 Cargo.lock
-.png
-.rpm
-.deb
+*.png
+*.rpm
+*.deb
