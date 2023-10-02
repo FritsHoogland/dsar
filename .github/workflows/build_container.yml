@@ -23,7 +23,7 @@ jobs:
     - name: build
       run: cargo build
     - name: strip executable
-      run: ls -altr .
+      run: ls -altr ./target/*
       #run: strip -s target/release/dsar
     - name: install cargo-generate-rpm
       run: cargo install cargo-generate-rpm --version 0.11.0 --force
