@@ -6,7 +6,8 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin:/root/.cargo/bin
+  # the pwd is /__w/dsar/dsar
+  PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin:/__w/dsar/dsar/.cargo/bin
 
 jobs:
   build_centos_7:
