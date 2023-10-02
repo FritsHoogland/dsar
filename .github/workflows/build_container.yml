@@ -17,7 +17,8 @@ jobs:
     - name: install rust
       run: curl https://sh.rustup.rs -sSf | sh -s -- -y
     - name: include rust in path
-      env: PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin:/root/.cargo/bin
+      env: 
+        PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin:/root/.cargo/bin
     - name: checkout code
       uses: actions/checkout@v2
     - name: build
