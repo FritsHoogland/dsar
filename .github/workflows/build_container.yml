@@ -6,6 +6,7 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin:/root/.cargo/bin
 
 jobs:
   build_centos_7:
@@ -16,9 +17,6 @@ jobs:
       run: yum install -y openssl-devel gcc cmake gcc-c++ freetype-devel expat-devel open-sans-fonts fontconfig-devel
     - name: install rust
       run: curl https://sh.rustup.rs -sSf | sh -s -- -y
-    - name: include rust in path
-      env: 
-        PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin:/root/.cargo/bin
     - name: checkout code
       uses: actions/checkout@v2
     - name: build
