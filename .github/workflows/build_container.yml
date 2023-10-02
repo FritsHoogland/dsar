@@ -20,7 +20,7 @@ jobs:
     - name: add rust to path
       run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
     - name: checkout code
-      uses: actions/checkout@4
+      uses: actions/checkout@v4
     - name: build
       run: cargo build --release
     - name: strip executable
@@ -43,7 +43,7 @@ jobs:
     - name: add rust to path
       run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
     - name: checkout code
-      uses: actions/checkout@4
+      uses: actions/checkout@v4
     - name: build
       run: cargo build --release
     - name: strip executable
