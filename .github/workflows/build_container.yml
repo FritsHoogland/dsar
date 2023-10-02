@@ -19,7 +19,7 @@ jobs:
     - name: install rust
       run: curl https://sh.rustup.rs -sSf | sh -s -- -y
     - name: add rust to path
-      run: ls .cargo/bin
+      run: ls $HOME/.cargo/bin
     - name: checkout code
       uses: actions/checkout@v2
     - name: build
