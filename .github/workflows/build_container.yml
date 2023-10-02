@@ -26,6 +26,6 @@ jobs:
       run: strip -s target/release/dsar
     - name: install cargo-generate-rpm
       run: cargo install cargo-generate-rpm --version 0.11.0 --force
-    - name generate rpm
+    - name: generate rpm
       run: cargo generate-rpm --payload-compress=gzip -s 'release = "el.7"'
       
