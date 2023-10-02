@@ -33,7 +33,7 @@ jobs:
     - name: executable
       run: ls target/generate-rpm/*
       
-  build_centos_8:
+  build_rocky_8:
     runs-on: ubuntu-latest
     container: rockylinux:8
     steps:
@@ -53,6 +53,29 @@ jobs:
       run: cargo install cargo-generate-rpm
     - name: generate rpm
       run: cargo generate-rpm -s 'release = "el.8"'
+    - name: executable
+      run: ls target/generate-rpm/*
+      
+  build_rocky_9:
+    runs-on: ubuntu-latest
+    container: rockylinux:8
+    steps:
+    - name: add operating system packages
+      run: yum install -y openssl-devel gcc cmake gcc-c++ freetype-devel expat-devel open-sans-fonts fontconfig-devel
+    - name: install rust
+      run: curl https://sh.rustup.rs -sSf | sh -s -- -y
+    - name: add rust to path
+      run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+    - name: checkout code
+      uses: actions/checkout@v4
+    - name: build
+      run: cargo build --release
+    - name: strip executable
+      run: strip -s target/release/dsar
+    - name: install cargo-generate-rpm
+      run: cargo install cargo-generate-rpm
+    - name: generate rpm
+      run: cargo generate-rpm -s 'release = "el.9"'
     - name: executable
       run: ls target/generate-rpm/*
       
