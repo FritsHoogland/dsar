@@ -80,17 +80,23 @@ jobs:
       run: cargo install cargo-generate-rpm
     - name: generate rpm
       run: cargo generate-rpm -s 'release = "el.8"'
-    - name: executable
-      run: ls target/generate-rpm/*
-      # settings-actions-general-workflow permissions def: read -> read and write
-    - name: release to latest
-      uses: "marvinpinto/action-automatic-releases@latest"
+    - name: upload rpm to release
+      uses: "AButler/upload-release-assets@v2.0"
       with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "latest"
-        prerelease: true
-        title: "Development Build"
-        files: target/generate-rpm/*
+        files: 'target/generate-rpm/*'
+        repo-token: "${{ secrets.GITHUB_TOKEN }}"
+        release-tag: "latest"
+      #- name: executable
+      #run: ls target/generate-rpm/*
+      # settings-actions-general-workflow permissions def: read -> read and write
+      #- name: release to latest
+      #uses: "marvinpinto/action-automatic-releases@latest"
+      #with:
+      #  repo_token: "${{ secrets.GITHUB_TOKEN }}"
+      #  automatic_release_tag: "latest"
+      #  prerelease: true
+      #  title: "Development Build"
+      #  files: target/generate-rpm/*
       
   build_rocky_9:
     runs-on: ubuntu-latest
@@ -113,15 +119,21 @@ jobs:
       run: cargo install cargo-generate-rpm
     - name: generate rpm
       run: cargo generate-rpm -s 'release = "el.9"'
-    - name: executable
-      run: ls target/generate-rpm/*
-      # settings-actions-general-workflow permissions def: read -> read and write
-    - name: release to latest
-      uses: "marvinpinto/action-automatic-releases@latest"
+    - name: upload rpm to release
+      uses: "AButler/upload-release-assets@v2.0"
       with:
-        repo_token: "${{ secrets.GITHUB_TOKEN }}"
-        automatic_release_tag: "latest"
-        prerelease: true
-        title: "Development Build"
-        files: target/generate-rpm/*
+        files: 'target/generate-rpm/*'
+        repo-token: "${{ secrets.GITHUB_TOKEN }}"
+        release-tag: "latest"
+      #- name: executable
+      #run: ls target/generate-rpm/*
+      # settings-actions-general-workflow permissions def: read -> read and write
+      #- name: release to latest
+      #uses: "marvinpinto/action-automatic-releases@latest"
+      #with:
+      #  repo_token: "${{ secrets.GITHUB_TOKEN }}"
+      #  automatic_release_tag: "latest"
+      #  prerelease: true
+      #  title: "Development Build"
+      #  files: target/generate-rpm/*
       
