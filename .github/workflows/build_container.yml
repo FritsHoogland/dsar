@@ -1,0 +1,31 @@
+name: build_centos_7
+
+on:
+  push:
+    branches: [ dev ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build_centos_7:
+    runs-on: ubuntu-latest
+    container: centos:7
+    steps:
+    - name: add operating system packages
+      run: yum install -y openssl-devel gcc cmake gcc-c++ freetype-devel expat-devel open-sans-fonts fontconfig-devel
+    - name: install rust
+      run: curl https://sh.rustup.rs -sSf | sh -s -- -y
+    - name: include rust in path
+      env: PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin:/root/.cargo/bin
+    - name: checkout code
+      uses: actions/checkout@v2
+    - name: build
+      run: cargo build --verbose
+    - name: strip executable
+      run: strip -s target/release/dsar
+    - name: install cargo-generate-rpm
+      run: cargo install cargo-generate-rpm --version 0.11.0 --force
+    - name generate rpm
+      run: cargo generate-rpm --payload-compress=gzip -s 'release = "el.7"'
+      
