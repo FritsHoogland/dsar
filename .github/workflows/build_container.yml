@@ -64,6 +64,15 @@ jobs:
       run: cargo generate-rpm -s 'release = "el.8"'
     - name: executable
       run: ls target/generate-rpm/*
+      # settings-actions-general-workflow permissions def: read -> read and write
+    - name: release to latest
+      uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "latest"
+        prerelease: true
+        title: "Development Build"
+        files: target/generate-rpm/*
       
   build_rocky_9:
     runs-on: ubuntu-latest
@@ -87,4 +96,13 @@ jobs:
       run: cargo generate-rpm -s 'release = "el.9"'
     - name: executable
       run: ls target/generate-rpm/*
+      # settings-actions-general-workflow permissions def: read -> read and write
+    - name: release to latest
+      uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "latest"
+        prerelease: true
+        title: "Development Build"
+        files: target/generate-rpm/*
       
