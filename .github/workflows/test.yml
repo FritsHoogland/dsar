@@ -1,8 +1,6 @@
 name: test
 
-on:
-  push:
-    branches: [ dev ]
+on: workflow_dispatch
 
 env:
   CARGO_TERM_COLOR: always

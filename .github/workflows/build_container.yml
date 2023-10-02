@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     container: centos:7
     steps:
+    - name: debug
+      run: echo "$(id) $(pwd)"
     - name: add operating system packages
       run: yum install -y openssl-devel gcc cmake gcc-c++ freetype-devel expat-devel open-sans-fonts fontconfig-devel
     - name: install rust
@@ -20,7 +22,7 @@ jobs:
     - name: checkout code
       uses: actions/checkout@v2
     - name: build
-      run: cargo build --verbose
+      run: cargo build
     - name: strip executable
       run: strip -s target/release/dsar
     - name: install cargo-generate-rpm
