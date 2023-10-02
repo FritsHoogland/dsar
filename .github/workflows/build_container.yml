@@ -6,8 +6,6 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
-  # the pwd is /__w/dsar/dsar
-  #PATH: /usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/bin:/__w/dsar/dsar/.cargo/bin
 
 jobs:
   build_centos_7:
@@ -25,7 +23,8 @@ jobs:
     - name: build
       run: cargo build
     - name: strip executable
-      run: strip -s target/release/dsar
+      run: ls -altr .
+      #run: strip -s target/release/dsar
     - name: install cargo-generate-rpm
       run: cargo install cargo-generate-rpm --version 0.11.0 --force
     - name: generate rpm
