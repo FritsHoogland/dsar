@@ -32,6 +32,14 @@ jobs:
       run: cargo generate-rpm --payload-compress=gzip -s 'release = "el.7"'
     - name: executable
       run: ls target/generate-rpm/*
+    - name: release to latest
+      uses: "marvinpinto/action-automatic-releases@latest"
+      with:
+        repo_token: "${{ secrets.GITHUB_TOKEN }}"
+        automatic_release_tag: "latest"
+        prerelease: true
+        title: "Development Build"
+        files: target/generate-rpm/*
       
   build_rocky_8:
     runs-on: ubuntu-latest
