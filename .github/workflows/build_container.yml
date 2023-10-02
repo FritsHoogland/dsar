@@ -21,7 +21,7 @@ jobs:
     - name: checkout code
       uses: actions/checkout@v2
     - name: build
-      run: cargo build
+      run: cargo build --release
     - name: strip executable
       run: ls -altr ./target/*
       #run: strip -s target/release/dsar
