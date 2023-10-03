@@ -111,6 +111,12 @@ jobs:
     if: true
     runs-on: macos-latest
     needs: recreate_latest_release
+    strategy:
+      matrix:
+        target:
+          - x86_64-apple-darwin
+          - aarch-apple-darwin
+
     steps:
 
     - uses: actions/checkout@v4
@@ -119,15 +125,22 @@ jobs:
       uses: actions-rs/toolchain@v1
       with:
         toolchain: stable
+        target: ${{ matrix.target }}
+        override: true
 
     - name: cargo build --release
       uses: actions-rs/cargo@v1
       with:
+        use-cross: true
         command: build
-        args: --release
+        args: --release --target=${{ matrix.target }}
    
-    - name: list cwd
-      run: ls -ls
+    - name: test
+      run: find .
+    #- name: strip executable
+    #  run: strip -s target/release/dsar
+    #
+    #- name: cargo generate
     # 
     #- name: add operating system packages
     #  run: yum install -y openssl-devel gcc cmake gcc-c++ freetype-devel expat-devel open-sans-fonts fontconfig-devel
