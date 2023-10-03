@@ -71,7 +71,7 @@ jobs:
       uses: actions-rs/cargo@v1
       with:
         command: generate-rpm
-        args: --payload-compress-gzip -s 'release = "el.7"'
+        args: --payload-compress=gzip -s 'release = "el.7"'
 
     - if: ${{ matrix.container == 'rockylinux:8' }}
       uses: actions-rs/cargo@v1
