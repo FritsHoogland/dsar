@@ -115,7 +115,7 @@ jobs:
       matrix:
         target:
           - x86_64-apple-darwin
-          - aarch-apple-darwin
+          - aarch64-apple-darwin
 
     steps:
 
