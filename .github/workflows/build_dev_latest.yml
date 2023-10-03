@@ -140,7 +140,7 @@ jobs:
 
     - name: strip and tar up executable
       run: |
-        strip -s target/${{ matrix.target}}/release/dsar
+        strip -S target/${{ matrix.target}}/release/dsar
         tar czvf dsar-${{ matrix.target }}-v${{ env.CARGO_APP_VERSION }}-1.tar.gz -C target/${{ matrix.target }}/release dsar
 
     - name: upload rpm to release
@@ -150,26 +150,3 @@ jobs:
         repo-token: "${{ secrets.GITHUB_TOKEN }}"
         release-tag: "latest"
 
-    #- name: cargo generate
-    # 
-    #- name: add operating system packages
-    #  run: yum install -y openssl-devel gcc cmake gcc-c++ freetype-devel expat-devel open-sans-fonts fontconfig-devel
-    #- name: install rust
-    #  run: curl https://sh.rustup.rs -sSf | sh -s -- -y
-    #- name: add rust to path
-    #  run: echo "$HOME/.cargo/bin" >> $GITHUB_PATH
-    #- name: build
-    #  run: cargo build --release
-    #- name: strip executable
-    #  run: strip -s target/release/dsar
-    #- name: install cargo-generate-rpm
-    #  run: cargo install cargo-generate-rpm
-    #- name: generate rpm
-    #  run: cargo generate-rpm -s 'release = "el.9"'
-    #- name: upload rpm to release
-    #  uses: "AButler/upload-release-assets@v2.0"
-    #  with:
-    #    files: 'target/generate-rpm/*'
-    #    repo-token: "${{ secrets.GITHUB_TOKEN }}"
-    #    release-tag: "latest"
-      
