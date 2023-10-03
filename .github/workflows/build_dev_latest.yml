@@ -29,7 +29,7 @@ jobs:
           - rockylinux:8
           - rockylinux:9
     container:
-      imagine: ${{ matrix.container }}
+      image: ${{ matrix.container }}
     needs: recreate_latest_release
     steps:
    
