@@ -1,7 +1,7 @@
-name: build
+name: build_rpm_deb_mac
 
 on:
-  push:
+  workflow_dispatch:
     branches: [ dev ]
 
 env:
@@ -141,7 +141,7 @@ jobs:
     strategy:
       matrix:
         container:
-          - ubuntu:2204
+          - ubuntu:22.04
     container:
       image: ${{ matrix.container }}
     needs: recreate_latest_release
@@ -175,7 +175,7 @@ jobs:
       with:
         command: deb
 
-    - if: ${{ matrix.container == 'ubuntu:2204' }}
+    - if: ${{ matrix.container == 'ubuntu:22.04' }}
       run: FILE=$(ls /usr/src/dsar/target/debian/dsar*deb); mv $FILE $(echo $FILE | sed 's/\(.*\)_\(amd64.deb\)/\1_0ubuntu1.22.04.1_\2/')
 
     - name: upload rpm to release
